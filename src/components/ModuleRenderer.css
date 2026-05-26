@@ -1,0 +1,13 @@
+.idle-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100svh;
+  background: var(--bg);
+}
+
+.idle-screen img {
+  width: 220px;
+  opacity: 0.85;
+}

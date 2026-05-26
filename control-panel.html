@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Hugin Control Panel</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      padding: 40px;
+      color: #1e1b4b;
+    }
+    h1 { font-size: 20px; margin-bottom: 32px; }
+    h2 { font-size: 14px; font-weight: bold; text-transform: uppercase;
+         letter-spacing: 0.05em; color: #888; margin-bottom: 12px; }
+    .section {
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      padding: 24px;
+      margin-bottom: 24px;
+      max-width: 560px;
+    }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+    button {
+      background: #1e1b4b;
+      color: #fff;
+      border: none;
+      padding: 10px 18px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    button:hover { background: #2d2a6b; }
+    button.orange { background: #F09644; }
+    button.orange:hover { background: #d07830; }
+    textarea {
+      width: 100%;
+      height: 160px;
+      font-family: monospace;
+      font-size: 12px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      resize: vertical;
+      margin-bottom: 8px;
+    }
+    .log {
+      font-family: monospace;
+      font-size: 12px;
+      color: #555;
+      margin-top: 24px;
+      max-width: 560px;
+    }
+    .log-entry { padding: 4px 0; border-bottom: 1px solid #eee; }
+    .log-entry.ok { color: #2a7a2a; }
+    .log-entry.err { color: #c0392b; }
+  </style>
+</head>
+<body>
+  <h1>Hugin Control Panel</h1>
+
+  <div class="section">
+    <h2>User Testing</h2>
+    <div class="row">
+      <button onclick="sendPause(5)">Pause 5 min</button>
+      <button onclick="testTime()">Digitale Uhr</button>
+      <button onclick="testAnalog()">Analoge Uhr</button>
+      <button onclick="testRoutineStill()">Routine ohne Ton</button>
+      <button onclick="testRoutineTon()">Routine mit Ton</button>
+      <button onclick="testRoutineSlide()">Routine Slide</button>
+      <button onclick="testRoutineNone()">Routine Kein Übergang</button>
+      <button onclick="testChatStill()">Chat Light ohne Ton</button>
+      <button onclick="testChatDark()">Chat Dark ohne Ton</button>
+      <button onclick="testChatFemale()">Chat Female</button>
+      <button onclick="testChatMale()">Chat Male</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Pause</h2>
+    <div class="row">
+      <button onclick="sendPause(1)">Pause 1 min</button>
+      <button onclick="sendPause(5)">Pause 5 min</button>
+      <button onclick="sendPause(30)">Pause 30 min</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Load Module</h2>
+    <div class="row">
+      <button onclick="sendTime()">Load Time</button>
+      <button onclick="sendRoutine()">Load Routine</button>
+      <button onclick="sendChat()">Load Chat</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Custom JSON</h2>
+    <textarea id="json-input">{
+  "command": "loadModule",
+  "type": "Time",
+  "module_id": "00000000-0000-0000-0003-000000000002",
+  "duration": 30000,
+  "format": "HH:mm",
+  "showSeconds": false,
+  "showDate": true,
+  "interval": 30
+}</textarea>
+    <div class="row">
+      <button class="orange" onclick="sendCustom()">Send</button>
+    </div>
+  </div>
+
+  <div class="log" id="log"></div>
+
+  <script>
+    async function send(msg) {
+      try {
+        const res = await fetch("http://localhost:3001", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(msg),
+        });
+        if (res.ok) {
+          log(`Sent: ${JSON.stringify(msg)}`, "ok");
+        } else {
+          log(`Server error: ${res.status}`, "err");
+        }
+      } catch (e) {
+        log(`Failed to reach http://localhost:3001 — is the app running? (${e.message})`, "err");
+      }
+    }
+
+    function sendPause(minutes) {
+      send({ command: "pause", duration: minutes });
+    }
+
+    function sendTime() {
+      send({
+        command: "loadModule",
+        type: "Time",
+        module_id: "00000000-0000-0000-0003-000000000002",
+        duration: 30000,
+        format: "HH:mm",
+        showSeconds: false,
+        showDate: true,
+        interval: 30,
+      });
+    }
+
+    function sendRoutine() {
+      send({
+        command: "loadModule",
+        type: "Routine",
+        module_id: "00000000-0000-0000-0003-000000000001",
+        duration: 60000,
+        audio: true,
+      });
+    }
+
+    function sendChat() {
+      send({
+        command: "loadModule",
+        type: "Chat",
+        module_id: "00000000-0000-0000-0003-000000000003",
+        duration: 60000,
+        audio: true,
+      });
+    }
+
+    function testTime() {
+      send({
+        command: "loadModule",
+        type: "Time",
+        module_id: "00000000-0000-0000-0003-000000000002",
+        duration: 300000,
+        clockType: "digital",
+        showDate: true,
+        showSeconds: false,
+        interval: 30,
+      });
+    }
+
+    function testRoutineTon() {
+      send({
+        command: "loadModule",
+        type: "Routine",
+        module_id: "00000000-0000-0000-0003-000000000001",
+        duration: 600000,
+        audio: true,
+        voice: "male",
+        transition: "fade",
+      });
+    }
+
+    function testChatFemale() {
+      send({
+        command: "loadModule",
+        type: "Chat",
+        module_id: "00000000-0000-0000-0003-000000000003",
+        duration: 300000,
+        audio: true,
+        voice: "female",
+        theme: "dark",
+        fontSize: "large",
+      });
+    }
+
+    function testChatMale() {
+      send({
+        command: "loadModule",
+        type: "Chat",
+        module_id: "00000000-0000-0000-0003-000000000003",
+        duration: 300000,
+        audio: true,
+        voice: "male",
+        theme: "dark",
+        fontSize: "large",
+      });
+    }
+
+    function testChatDark() {
+      send({
+        command: "loadModule",
+        type: "Chat",
+        module_id: "00000000-0000-0000-0003-000000000003",
+        duration: 300000,
+        audio: false,
+        theme: "dark",
+        fontSize: "large",
+      });
+    }
+
+    function testChatStill() {
+      send({
+        command: "loadModule",
+        type: "Chat",
+        module_id: "00000000-0000-0000-0003-000000000003",
+        duration: 300000,
+        audio: false,
+        theme: "light",
+        fontSize: "large",
+      });
+    }
+
+    function testRoutineSlide() {
+      send({
+        command: "loadModule",
+        type: "Routine",
+        module_id: "00000000-0000-0000-0003-000000000001",
+        duration: 600000,
+        audio: false,
+        transition: "slide",
+      });
+    }
+
+    function testRoutineNone() {
+      send({
+        command: "loadModule",
+        type: "Routine",
+        module_id: "00000000-0000-0000-0003-000000000001",
+        duration: 600000,
+        audio: false,
+        transition: "none",
+      });
+    }
+
+    function testRoutineStill() {
+      send({
+        command: "loadModule",
+        type: "Routine",
+        module_id: "00000000-0000-0000-0003-000000000001",
+        duration: 600000,
+        audio: false,
+        transition: "fade",
+      });
+    }
+
+    function testAnalog() {
+      send({
+        command: "loadModule",
+        type: "Time",
+        module_id: "00000000-0000-0000-0003-000000000002",
+        duration: 600000,
+        clockType: "analog",
+        showDate: true,
+        showSeconds: false,
+        interval: 30,
+      });
+    }
+
+    function sendCustom() {
+      try {
+        const msg = JSON.parse(document.getElementById("json-input").value);
+        send(msg);
+      } catch (e) {
+        log(`Invalid JSON: ${e.message}`, "err");
+      }
+    }
+
+    function log(text, type = "") {
+      const el = document.getElementById("log");
+      const entry = document.createElement("div");
+      entry.className = `log-entry ${type}`;
+      entry.textContent = `${new Date().toLocaleTimeString()} — ${text}`;
+      el.prepend(entry);
+    }
+  </script>
+</body>
+</html>
