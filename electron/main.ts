@@ -98,6 +98,12 @@ function setupAutoUpdater() {
   if (!app.isPackaged) return;
 
   autoUpdater.allowPrerelease = app.getVersion().includes("-");
+  autoUpdater.setFeedURL({
+    provider: "github",
+    owner: "hugin-und-munin",
+    repo: "viewer-app",
+    token: process.env.GH_UPDATE_TOKEN ?? "",
+  });
 
   autoUpdater.on("checking-for-update", () => log.info("[updater] checking for update..."));
   autoUpdater.on("update-available", (info) => log.info("[updater] update available:", info.version));
