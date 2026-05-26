@@ -1,4 +1,5 @@
 interface ElectronAPI {
+  configGet: () => Promise<{ deviceId: string; token: string }>;
   cacheRead: (filename: string) => Promise<string | null>;
   cacheWrite: (filename: string, data: string) => Promise<void>;
   onControl: (callback: (data: unknown) => void) => void;

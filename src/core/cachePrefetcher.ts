@@ -102,7 +102,7 @@ export async function prefetchAll(): Promise<void> {
   if (import.meta.env.VITE_DISABLE_PREFETCH === "true") return;
   if (await ranToday()) return;
 
-  const { deviceId, token } = loadDeviceConfig();
+  const { deviceId, token } = await loadDeviceConfig();
   api.setAuthToken(token);
 
   let modules: ApiModule[];

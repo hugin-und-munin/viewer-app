@@ -1,4 +1,10 @@
-import { app, BrowserWindow, ipcMain, session } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, session } from "electron";
+import log from "electron-log/main";
+import pkg from "electron-updater";
+const { autoUpdater } = pkg;
+
+log.initialize();
+autoUpdater.logger = log;
 import fs from "fs/promises";
 import http from "http";
 import path from "path";
@@ -6,6 +12,13 @@ import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+function registerConfigHandlers() {
+  ipcMain.handle("config:get", () => ({
+    deviceId: process.env.DEVICE_ID ?? "",
+    token:    process.env.API_TOKEN  ?? "",
+  }));
+}
 
 function registerCacheHandlers() {
   ipcMain.handle("cache:read", async (_event, filename: string): Promise<string | null> => {
@@ -57,8 +70,9 @@ function startControlServer(win: BrowserWindow) {
 
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
-    width: 1280,
-    height: 720,
+    fullscreen: true,
+    show: false,
+    backgroundColor: "#000000",
     webPreferences: {
       preload: app.isPackaged
           ? path.join(__dirname, "preload.cjs")
@@ -67,6 +81,8 @@ function createWindow(): BrowserWindow {
       nodeIntegration: false,
     },
   });
+
+  win.once("ready-to-show", () => win.show());
 
   // In dev load Vite dev server, in prod load built index.html
   if (process.env.NODE_ENV === "development") {
@@ -78,10 +94,37 @@ function createWindow(): BrowserWindow {
   return win;
 }
 
+function setupAutoUpdater() {
+  if (!app.isPackaged) return;
+
+  autoUpdater.allowPrerelease = app.getVersion().includes("-");
+
+  autoUpdater.on("checking-for-update", () => log.info("[updater] checking for update..."));
+  autoUpdater.on("update-available", (info) => log.info("[updater] update available:", info.version));
+  autoUpdater.on("update-not-available", (info) => log.info("[updater] up to date:", info.version));
+  autoUpdater.on("error", (err) => log.error("[updater] error:", err));
+
+  autoUpdater.checkForUpdates();
+
+  autoUpdater.on("update-downloaded", () => {
+    dialog.showMessageBox({
+      type: "info",
+      title: "Update ready",
+      message: "A new version has been downloaded. Restart the app to apply the update.",
+      buttons: ["Restart now", "Later"],
+    }).then(({ response }) => {
+      if (response === 0) autoUpdater.quitAndInstall();
+    });
+  });
+}
+
 app.whenReady().then(() => {
+  if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: true });
+  registerConfigHandlers();
   registerCacheHandlers();
   const win = createWindow();
   startControlServer(win);
+  setupAutoUpdater();
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

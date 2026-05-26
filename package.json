@@ -1,7 +1,7 @@
 {
-  "name": "user-app",
+  "name": "viewer-app",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
@@ -11,13 +11,48 @@
     "lint": "eslint .",
     "preview": "electron .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "dist:win": "vite build && electron-builder --win",
+    "dist:win:publish": "vite build && electron-builder --win --publish always"
+  },
+  "build": {
+    "appId": "com.hugin-und-munin.viewer-app",
+    "productName": "Viewer App",
+    "directories": {
+      "output": "release/${version}"
+    },
+    "files": [
+      "dist/**",
+      "dist-electron/**"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "hugin-und-munin",
+      "repo": "viewer-app",
+      "releaseType": "release"
+    }
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@fontsource/atkinson-hyperlegible": "^5.2.8",
     "@mui/material": "^7.3.9",
+    "electron-log": "^5.4.4",
+    "electron-updater": "^6.8.3",
     "esbuild": "^0.27.7",
     "events": "^3.3.0",
     "lodash.isequal": "^4.5.0",
@@ -32,6 +67,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
     "electron": "^41.1.1",
+    "electron-builder": "^26.8.1",
     "eslint": "^9.39.4",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.2",

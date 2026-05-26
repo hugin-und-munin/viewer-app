@@ -10,6 +10,13 @@ export default defineConfig({
     electron([
       {
         entry: "electron/main.ts",
+        vite: {
+          build: {
+            rollupOptions: {
+              external: (id) => ["electron-updater", "electron-log"].some(pkg => id === pkg || id.startsWith(pkg + "/")),
+            },
+          },
+        },
       },
     ]),
     {

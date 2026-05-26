@@ -37,7 +37,7 @@ function findActive(settings: AppSettingsSummary[]): AppSettingsSummary | undefi
 }
 
 export async function getCurrentModules(): Promise<ModuleProps[]> {
-  const { deviceId, token } = loadDeviceConfig();
+  const { deviceId, token } = await loadDeviceConfig();
   api.setAuthToken(token);
 
   const settings = await api.get<AppSettingsSummary[]>(`/devices/${deviceId}/appsettings`);
