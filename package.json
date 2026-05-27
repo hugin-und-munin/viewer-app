@@ -36,8 +36,9 @@
       ]
     },
     "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "oneClick": true,
+      "silent": true,
+      "allowToChangeInstallationDirectory": false
     },
     "publish": {
       "provider": "github",
