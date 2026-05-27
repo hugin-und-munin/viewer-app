@@ -36,8 +36,7 @@
       ]
     },
     "nsis": {
-      "oneClick": true,
-      "disableWebInstaller": true
+      "oneClick": true
     },
     "publish": {
       "provider": "github",
