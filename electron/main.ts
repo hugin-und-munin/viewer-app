@@ -18,8 +18,8 @@ function loadEnvFile() {
   const envPaths = app.isPackaged
     ? [path.join(app.getPath("userData"), ".env")]
     : [
-        path.join(app.getAppPath(), "env", ".env"),        // base values
-        path.join(app.getAppPath(), "env", ".env.local"),  // local overrides (git-ignored)
+        path.join(app.getAppPath(), "env", ".env.local"),  // local overrides (git-ignored, loaded first = wins)
+        path.join(app.getAppPath(), "env", ".env"),        // base values (fills gaps)
       ];
 
   for (const envPath of envPaths) {
@@ -32,7 +32,6 @@ function loadEnvFile() {
         if (eq === -1) continue;
         const key = trimmed.slice(0, eq).trim();
         const val = trimmed.slice(eq + 1).trim().replace(/^["'](.*)["']$/, "$1");
-        // system env vars take precedence – only set if not already defined
         if (key && !(key in process.env)) process.env[key] = val;
       }
       log.info(`[env] loaded: ${envPath}`);
@@ -54,10 +53,9 @@ function requireEnv(key: string): string {
 
 function registerConfigHandlers() {
   ipcMain.handle("config:get", () => ({
-    // secrets – set as Windows user environment variables
+    // all values come from the .env file in %APPDATA%\viewer-app\
     deviceId:                 requireEnv("DEVICE_ID"),
     token:                    requireEnv("API_TOKEN"),
-    // app settings – set in .env file (system vars override)
     apiUrl:                   requireEnv("VITE_API_URL"),
     disableCache:             process.env.VITE_DISABLE_CACHE    === "true",
     disablePrefetch:          process.env.VITE_DISABLE_PREFETCH === "true",
