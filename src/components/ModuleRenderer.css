@@ -4,7 +4,7 @@
   justify-content: center;
   width: 100%;
   height: 100svh;
-  background: #30fb03;
+  background: hsl(0, 0%, 100%);
 }
 
 .idle-screen img {

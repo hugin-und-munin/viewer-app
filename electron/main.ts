@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, session } from "electron";
+import { app, BrowserWindow, ipcMain, session } from "electron";
 import log from "electron-log/main";
 import pkg from "electron-updater";
 const { autoUpdater } = pkg;
@@ -113,14 +113,7 @@ function setupAutoUpdater() {
   autoUpdater.checkForUpdates();
 
   autoUpdater.on("update-downloaded", () => {
-    dialog.showMessageBox({
-      type: "info",
-      title: "Update ready",
-      message: "A new version has been downloaded. Restart the app to apply the update.",
-      buttons: ["Restart now", "Later"],
-    }).then(({ response }) => {
-      if (response === 0) autoUpdater.quitAndInstall();
-    });
+    log.info("[updater] update downloaded, will install on next restart");
   });
 }
 
