@@ -37,7 +37,6 @@
     },
     "nsis": {
       "oneClick": true,
-      "silent": true,
       "allowToChangeInstallationDirectory": false
     },
     "publish": {
