@@ -1,3 +1,5 @@
+import { loadConfig } from "./deviceConfig";
+
 type CacheEntry = {
   data: any;
   etag?: string;
@@ -90,7 +92,7 @@ export class Api {
   }
 
   async getBlob(endpoint: string): Promise<string | null> {
-    const noCache = import.meta.env.VITE_DISABLE_CACHE === "true";
+    const { disableCache: noCache } = await loadConfig();
     const cacheKey = `blobs/${endpoint.replace(/[^a-z0-9]/gi, "_")}`;
 
     if (!noCache && window.electronAPI) {
@@ -135,8 +137,7 @@ export class Api {
   ): Promise<T> {
     await this.cacheReady;
 
-    const noCache = import.meta.env.VITE_DISABLE_CACHE === "true";
-    const defaultTtl = Number(import.meta.env.VITE_CACHE_TTL_MS ?? 0);
+    const { disableCache: noCache, cacheTtlMs: defaultTtl } = await loadConfig();
     const { ttl = defaultTtl, permanent = false } = options;
     const cached = this.cache[endpoint];
 
@@ -216,4 +217,13 @@ export class Api {
   }
 }
 
-export const api = new Api(import.meta.env.VITE_API_URL);
+let _api: Api | null = null;
+
+export function initApi(baseUrl: string): void {
+  _api = new Api(baseUrl);
+}
+
+export function getApi(): Api {
+  if (!_api) throw new Error("[api] not initialized – call initApi() before rendering");
+  return _api;
+}

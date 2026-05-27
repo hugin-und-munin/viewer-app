@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Box, Typography } from "@mui/material";
 import type { RoutineProps } from "../../types/modules";
 import { speak, stop, getVoices } from "../../utils/tts";
-import { api } from "../../api/api";
+import { getApi } from "../../api/api";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -173,7 +173,7 @@ function useAppointments(moduleId: string) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api
+    getApi()
       .get<ModuleDataEntry[]>(`/modules/${moduleId}/data`)
       .then((entries) =>
         setAppointments(

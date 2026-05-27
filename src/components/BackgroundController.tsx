@@ -5,6 +5,7 @@ import type { PauseCommand, LoadModuleCommand } from "../core/controlService";
 import ModuleScheduler from "../core/moduleScheduler";
 import { clearModule, showModule } from "../core/moduleDisplayManager";
 import { prefetchAll } from "../core/cachePrefetcher";
+import { loadConfig } from "../api/deviceConfig";
 import type { ModuleProps } from "../types/modules";
 
 function BackgroundController() {
@@ -58,19 +59,24 @@ function BackgroundController() {
       overrideTimer = setTimeout(endOverride, module.duration);
     };
 
-    const controlEnabled = import.meta.env.VITE_CONTROL_ENABLED === "true";
+    // controlEnabled is read async from runtime config; the variable is
+    // captured by reference in the closure so the cleanup sees the final value.
+    let controlEnabled = false;
 
     configService.on("configChanged", onConfigChanged);
-    if (controlEnabled) {
-      controlService.on("pause", onPause);
-      controlService.on("loadModule", onLoadModule);
-    }
+    configService.start();
 
     prefetchAll().catch(() => {});
     const prefetchIntervalId = setInterval(() => prefetchAll().catch(() => {}), 1 * 60 * 60 * 1000);
 
-    configService.start();
-    if (controlEnabled) controlService.start();
+    loadConfig().then(({ controlEnabled: enabled }) => {
+      controlEnabled = enabled;
+      if (controlEnabled) {
+        controlService.on("pause", onPause);
+        controlService.on("loadModule", onLoadModule);
+        controlService.start();
+      }
+    });
 
     return () => {
       clearInterval(prefetchIntervalId);

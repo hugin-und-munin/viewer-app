@@ -1,5 +1,5 @@
-import { api } from "../api/api";
-import { loadDeviceConfig } from "../api/deviceConfig";
+import { getApi } from "../api/api";
+import { loadConfig } from "../api/deviceConfig";
 
 interface ModuleDataEntry {
   data: Record<string, unknown>;
@@ -24,13 +24,12 @@ interface ApiModule {
   id: string;
 }
 
-const APPSETTINGS_LOOKAHEAD_DAYS = Number(import.meta.env.VITE_APPSETTINGS_LOOKAHEAD_DAYS ?? 3);
 const PREFETCH_DATE_FILE = "prefetch-date.json";
 
 async function prefetchModule(moduleId: string): Promise<void> {
   let entries: ModuleDataEntry[];
   try {
-    entries = await api.get<ModuleDataEntry[]>(`/modules/${moduleId}/data`);
+    entries = await getApi().get<ModuleDataEntry[]>(`/modules/${moduleId}/data`);
   } catch {
     return;
   }
@@ -45,7 +44,7 @@ async function prefetchModule(moduleId: string): Promise<void> {
 
   await Promise.allSettled(
     [...userIds].map((id) =>
-      api
+      getApi()
         .get<UserProfile>(`/users/${id}`)
         .then((user) => { if (user.media_id) mediaIds.add(user.media_id); })
         .catch(() => {}),
@@ -53,18 +52,19 @@ async function prefetchModule(moduleId: string): Promise<void> {
   );
 
   // Blob URLs are discarded — disk cache is the goal
-  await Promise.allSettled([...mediaIds].map((id) => api.getBlob(`/media/${id}`)));
+  await Promise.allSettled([...mediaIds].map((id) => getApi().getBlob(`/media/${id}`)));
 }
 
 async function prefetchAppSettings(deviceId: string): Promise<void> {
+  const { appsettingsLookaheadDays } = await loadConfig();
   let summaries: AppSettingsSummary[];
   try {
-    summaries = await api.get<AppSettingsSummary[]>(`/devices/${deviceId}/appsettings`);
+    summaries = await getApi().get<AppSettingsSummary[]>(`/devices/${deviceId}/appsettings`);
   } catch {
     return;
   }
 
-  const cutoff = new Date(Date.now() + APPSETTINGS_LOOKAHEAD_DAYS * 24 * 60 * 60 * 1000);
+  const cutoff = new Date(Date.now() + appsettingsLookaheadDays * 24 * 60 * 60 * 1000);
   const now = new Date();
   const relevant = summaries.filter(
     (s) =>
@@ -74,7 +74,7 @@ async function prefetchAppSettings(deviceId: string): Promise<void> {
 
   await Promise.allSettled(
     relevant.map((s) =>
-      api.get<AppSettingsDetail>(`/devices/${deviceId}/appsettings/${s.id}`).catch(() => {}),
+      getApi().get<AppSettingsDetail>(`/devices/${deviceId}/appsettings/${s.id}`).catch(() => {}),
     ),
   );
 }
@@ -99,15 +99,15 @@ async function markDone(): Promise<void> {
 }
 
 export async function prefetchAll(): Promise<void> {
-  if (import.meta.env.VITE_DISABLE_PREFETCH === "true") return;
+  const { disablePrefetch, deviceId, token } = await loadConfig();
+  if (disablePrefetch) return;
   if (await ranToday()) return;
 
-  const { deviceId, token } = await loadDeviceConfig();
-  api.setAuthToken(token);
+  getApi().setAuthToken(token);
 
   let modules: ApiModule[];
   try {
-    modules = await api.get<ApiModule[]>("/modules");
+    modules = await getApi().get<ApiModule[]>("/modules");
   } catch {
     console.warn("[Prefetch] Server not reachable — skipping, will retry on next interval");
     return;

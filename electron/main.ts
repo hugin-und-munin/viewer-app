@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, session } from "electron";
+import { app, BrowserWindow, ipcMain } from "electron";
 import log from "electron-log/main";
 import pkg from "electron-updater";
 const { autoUpdater } = pkg;
@@ -6,6 +6,7 @@ const { autoUpdater } = pkg;
 log.initialize();
 autoUpdater.logger = log;
 import fs from "fs/promises";
+import { readFileSync } from "fs";
 import http from "http";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -13,11 +14,58 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+function loadEnvFile() {
+  const envPaths = app.isPackaged
+    ? [path.join(app.getPath("userData"), ".env")]
+    : [
+        path.join(app.getAppPath(), "env", ".env"),        // base values
+        path.join(app.getAppPath(), "env", ".env.local"),  // local overrides (git-ignored)
+      ];
+
+  for (const envPath of envPaths) {
+    try {
+      const lines = readFileSync(envPath, "utf-8").split(/\r?\n/);
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith("#")) continue;
+        const eq = trimmed.indexOf("=");
+        if (eq === -1) continue;
+        const key = trimmed.slice(0, eq).trim();
+        const val = trimmed.slice(eq + 1).trim().replace(/^["'](.*)["']$/, "$1");
+        // system env vars take precedence – only set if not already defined
+        if (key && !(key in process.env)) process.env[key] = val;
+      }
+      log.info(`[env] loaded: ${envPath}`);
+    } catch {
+      log.info(`[env] no .env file at ${envPath}, skipping`);
+    }
+  }
+}
+
+function requireEnv(key: string): string {
+  const value = process.env[key];
+  if (!value) {
+    const msg = `[config] Required environment variable "${key}" is not set.`;
+    log.error(msg);
+    throw new Error(msg);
+  }
+  return value;
+}
+
 function registerConfigHandlers() {
   ipcMain.handle("config:get", () => ({
-    deviceId: process.env.DEVICE_ID ?? "",
-    token:    process.env.API_TOKEN  ?? "",
+    // secrets – set as Windows user environment variables
+    deviceId:                 requireEnv("DEVICE_ID"),
+    token:                    requireEnv("API_TOKEN"),
+    // app settings – set in .env file (system vars override)
+    apiUrl:                   requireEnv("VITE_API_URL"),
+    disableCache:             process.env.VITE_DISABLE_CACHE    === "true",
+    disablePrefetch:          process.env.VITE_DISABLE_PREFETCH === "true",
+    cacheTtlMs:               Number(process.env.VITE_CACHE_TTL_MS               ?? 0),
+    appsettingsLookaheadDays: Number(process.env.VITE_APPSETTINGS_LOOKAHEAD_DAYS ?? 3),
+    controlEnabled:           process.env.VITE_CONTROL_ENABLED  === "true",
   }));
+  ipcMain.handle("app:version", () => app.getVersion());
 }
 
 function registerCacheHandlers() {
@@ -118,11 +166,12 @@ function setupAutoUpdater() {
 }
 
 app.whenReady().then(() => {
+  loadEnvFile();
   if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: true });
   registerConfigHandlers();
   registerCacheHandlers();
   const win = createWindow();
-  startControlServer(win);
+  if (process.env.VITE_CONTROL_ENABLED === "true") startControlServer(win);
   setupAutoUpdater();
 
   app.on("activate", () => {

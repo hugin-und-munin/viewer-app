@@ -5,9 +5,29 @@ import logo from "../assets/logo.png";
 import "./ModuleRenderer.css";
 
 function IdleScreen() {
+  const [version, setVersion] = useState<string>("");
+
+  useEffect(() => {
+    window.electronAPI?.appVersion().then(setVersion);
+  }, []);
+
   return (
     <div className="idle-screen">
       <img src={logo} alt="Hugin und Munin" />
+      {version && (
+        <span style={{
+          position: "absolute",
+          bottom: 8,
+          right: 12,
+          fontSize: 11,
+          color: "rgba(255,255,255,0.35)",
+          fontFamily: "monospace",
+          pointerEvents: "none",
+          userSelect: "none",
+        }}>
+          v{version}
+        </span>
+      )}
     </div>
   );
 }

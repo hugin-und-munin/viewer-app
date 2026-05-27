@@ -1,5 +1,5 @@
-import { api } from "./api";
-import { loadDeviceConfig } from "./deviceConfig";
+import { getApi } from "./api";
+import { loadConfig } from "./deviceConfig";
 import type { ModuleProps } from "../types/modules";
 
 interface AppSettingsSummary {
@@ -37,16 +37,16 @@ function findActive(settings: AppSettingsSummary[]): AppSettingsSummary | undefi
 }
 
 export async function getCurrentModules(): Promise<ModuleProps[]> {
-  const { deviceId, token } = await loadDeviceConfig();
-  api.setAuthToken(token);
+  const { deviceId, token } = await loadConfig();
+  getApi().setAuthToken(token);
 
-  const settings = await api.get<AppSettingsSummary[]>(`/devices/${deviceId}/appsettings`);
+  const settings = await getApi().get<AppSettingsSummary[]>(`/devices/${deviceId}/appsettings`);
   const active = findActive(settings);
   if (!active) return [];
 
   const [detail, modules] = await Promise.all([
-    api.get<AppSettingsDetail>(`/devices/${deviceId}/appsettings/${active.id}`),
-    api.get<ApiModule[]>(`/modules`),
+    getApi().get<AppSettingsDetail>(`/devices/${deviceId}/appsettings/${active.id}`),
+    getApi().get<ApiModule[]>(`/modules`),
   ]);
 
   const typeById = new Map(modules.map((m) => [m.id, m.type]));

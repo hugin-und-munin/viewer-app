@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useEffect, useRef, useState } from "react";
 import { Avatar, Box, Typography } from "@mui/material";
-import { api } from "../../api/api";
+import { getApi } from "../../api/api";
 import type { ChatProps } from "../../types/modules";
 import { speak, stop, getVoices } from "../../utils/tts";
 
@@ -65,9 +65,12 @@ function useMessages(moduleId: string) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api
-      .get<ModuleDataEntry[]>(`/modules/${moduleId}/data`)
-      .then(async (entries) => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const entries = await getApi().get<ModuleDataEntry[]>(`/modules/${moduleId}/data`);
+        if (cancelled) return;
+
         const base = entries
           .reverse()
           .slice(-MESSAGES_SINCE_DAYS)
@@ -86,13 +89,14 @@ function useMessages(moduleId: string) {
         const profileMap = new Map<string, UserPublicProfile>();
         await Promise.all(
           uniqueIds.map((id) =>
-            api
+            getApi()
               .get<UserPublicProfile>(`/users/${id}`)
               .then((p) => profileMap.set(id, p))
               .catch(() => {}),
           ),
         );
 
+        if (cancelled) return;
         setMessages(
           base.map((m) => ({
             ...m,
@@ -100,11 +104,13 @@ function useMessages(moduleId: string) {
             sender_media_id: profileMap.get(m.user_id)?.media_id ?? undefined,
           })),
         );
-      })
-      .catch((err) => {
-        setError((err as Error).message);
-      })
-      .finally(() => setLoading(false));
+      } catch (err) {
+        if (!cancelled) setError((err as Error).message);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
   }, [moduleId]);
 
   return { messages, loading, error };
@@ -138,7 +144,7 @@ function useMediaBlobUrl(mediaId: string | undefined): string | null {
   useEffect(() => {
     if (!mediaId) { setBlobUrl(null); return; }
     let cancelled = false;
-    api.getBlob(`/media/${mediaId}`).then((url) => {
+    getApi().getBlob(`/media/${mediaId}`).then((url) => {
       if (cancelled || !url) return;
       if (urlRef.current) URL.revokeObjectURL(urlRef.current);
       urlRef.current = url;
