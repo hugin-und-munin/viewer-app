@@ -114,7 +114,7 @@ export class Api {
 
     const blob = await res.blob();
 
-    if (window.electronAPI) {
+    if (!noCache && window.electronAPI) {
       new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result as string);
@@ -168,7 +168,7 @@ export class Api {
 
     if (!res.ok) {
       // Stale cache fallback only on server errors (5xx), not client errors (4xx)
-      if (res.status >= 500 && cached) {
+      if (!noCache && res.status >= 500 && cached) {
         console.warn(`GET ${endpoint} failed with ${res.status}, returning stale cache`);
         return cached.data;
       }
@@ -177,12 +177,14 @@ export class Api {
 
     const data = await this.parseJSON<T>("GET", endpoint, res);
 
-    this.cache[endpoint] = {
-      data,
-      etag: res.headers.get("ETag") ?? undefined,
-      cachedAt: Date.now(),
-    };
-    this.saveCache();
+    if (!noCache) {
+      this.cache[endpoint] = {
+        data,
+        etag: res.headers.get("ETag") ?? undefined,
+        cachedAt: Date.now(),
+      };
+      this.saveCache();
+    }
 
     return data;
   }

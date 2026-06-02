@@ -148,7 +148,6 @@ function setupAutoUpdater() {
     provider: "github",
     owner: "hugin-und-munin",
     repo: "viewer-app",
-    token: process.env.GH_UPDATE_TOKEN ?? "",
   });
 
   autoUpdater.on("checking-for-update", () => log.info("[updater] checking for update..."));
