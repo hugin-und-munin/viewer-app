@@ -1,6 +1,6 @@
-import ModuleRenderer from "./components/ModuleRenderer.tsx";
-import BackgroundController from "./components/BackgroundController.js";
-import "./App.css";
+import ModuleRenderer from './components/ModuleRenderer.tsx'
+import BackgroundController from './components/BackgroundController.js'
+import './App.css'
 
 function App() {
   return (
@@ -8,7 +8,7 @@ function App() {
       <ModuleRenderer />
       <BackgroundController />
     </>
-  );
+  )
 }
 
-export default App;
+export default App

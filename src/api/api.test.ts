@@ -12,15 +12,15 @@ const mockLoadConfig = loadConfig as ReturnType<typeof vi.fn>
 
 function mockElectronAPI(overrides: Partial<typeof window.electronAPI> = {}) {
   const api = {
-    configGet:  vi.fn(),
+    configGet: vi.fn(),
     appVersion: vi.fn(),
-    cacheRead:  vi.fn().mockResolvedValue(null),   // no disk cache by default
+    cacheRead: vi.fn().mockResolvedValue(null), // no disk cache by default
     cacheWrite: vi.fn().mockResolvedValue(undefined),
-    onControl:  vi.fn(),
+    onControl: vi.fn(),
     offControl: vi.fn(),
     ...overrides,
-  } satisfies typeof window.electronAPI;
-  // @ts-ignore — node test environment has no window
+  } satisfies typeof window.electronAPI
+  // @ts-expect-error — node test environment has no window
   globalThis.window = { electronAPI: api }
   return api
 }
@@ -48,14 +48,14 @@ function statusResponse(status: number, statusText = ''): Response {
 
 function defaultConfig(overrides: Partial<AppConfig> = {}): AppConfig {
   return {
-    deviceId:                 'dev-1',
-    token:                    'tok',
-    apiUrl:                   'http://api',
-    disableCache:             false,
-    disablePrefetch:          false,
-    cacheTtlMs:               60_000,
+    deviceId: 'dev-1',
+    token: 'tok',
+    apiUrl: 'http://api',
+    disableCache: false,
+    disablePrefetch: false,
+    cacheTtlMs: 60_000,
     appsettingsLookaheadDays: 3,
-    controlEnabled:           false,
+    controlEnabled: false,
     ...overrides,
   }
 }
@@ -104,9 +104,9 @@ describe('Api.get — caching and offline fallback', () => {
     fetchMock.mockResolvedValue(okResponse({ v: 1 }))
     mockLoadConfig.mockResolvedValue(defaultConfig({ cacheTtlMs: 1_000 }))
 
-    await api.get('/items')                        // populates cache (t=0)
-    vi.advanceTimersByTime(1_001)                  // TTL expired
-    await api.get('/items')                        // should re-fetch
+    await api.get('/items') // populates cache (t=0)
+    vi.advanceTimersByTime(1_001) // TTL expired
+    await api.get('/items') // should re-fetch
 
     expect(fetchMock).toHaveBeenCalledTimes(2)
     vi.useRealTimers()
@@ -127,7 +127,9 @@ describe('Api.get — caching and offline fallback', () => {
 
     // Server replies 304
     fetchMock.mockResolvedValueOnce({
-      ok: false, status: 304, statusText: 'Not Modified',
+      ok: false,
+      status: 304,
+      statusText: 'Not Modified',
       headers: { get: () => null },
     } as unknown as Response)
     const result = await api.get<{ v: number }>('/items')
@@ -148,7 +150,9 @@ describe('Api.get — caching and offline fallback', () => {
     await api.get('/items')
 
     // Second request: network down
-    fetchMock.mockRejectedValueOnce(new Error('Network error on GET http://localhost/items: Failed to fetch'))
+    fetchMock.mockRejectedValueOnce(
+      new Error('Network error on GET http://localhost/items: Failed to fetch'),
+    )
     const result = await api.get<{ v: number }>('/items', { ttl: 0 })
 
     expect(result).toEqual({ v: 1 })
@@ -249,7 +253,8 @@ describe('Api.get — caching and offline fallback', () => {
 
     // Minimal blob response
     const blobFetch = {
-      ok: true, status: 200,
+      ok: true,
+      status: 200,
       headers: { get: () => null },
       blob: () => Promise.resolve(new Blob(['data'], { type: 'image/png' })),
     } as unknown as Response

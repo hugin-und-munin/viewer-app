@@ -5,6 +5,14 @@ import fs from "fs";
 
 export default defineConfig({
   envDir: "env",
+  server: {
+    proxy: {
+      '/api': {
+        target: 'https://37-156-46-47.sslip.io',
+        changeOrigin: true,
+      }
+    }
+  },
   plugins: [
     react(),
     electron([

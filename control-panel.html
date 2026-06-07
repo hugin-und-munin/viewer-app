@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
   <meta charset="UTF-8" />
-  <title>Hugin und Munin Control Panel</title>
+  <title>Hugin und Munin Steuerungspanel</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -63,7 +63,7 @@
   </style>
 </head>
 <body>
-  <h1>Hugin und Munin Control Panel</h1>
+  <h1>Hugin und Munin Steuerungspanel</h1>
 
   <div class="grid">
     <div class="section">
@@ -105,11 +105,6 @@
         <button onclick="testRoutineStill()">Ohne Ton</button>
         <button onclick="testRoutineTon()">Mit Ton</button>
       </div>
-      <div class="row">
-        <button onclick="testRoutineFade()">Übergang Einblenden</button>
-        <button onclick="testRoutineSlide()">Übergang Schieben</button>
-        <button onclick="testRoutineNone()">Kein Übergang</button>
-      </div>
     </div>
 
     <div class="section wide">
@@ -145,12 +140,12 @@
           body: JSON.stringify(msg),
         });
         if (res.ok) {
-          log(`Sent: ${JSON.stringify(msg)}`, "ok");
+          log(`Gesendet: ${JSON.stringify(msg)}`, "ok");
         } else {
-          log(`Server error: ${res.status}`, "err");
+          log(`Serverfehler: ${res.status}`, "err");
         }
       } catch (e) {
-        log(`Failed to reach http://localhost:3001 — is the app running? (${e.message})`, "err");
+        log(`Verbindung zu http://localhost:3001 fehlgeschlagen — läuft die App? (${e.message})`, "err");
       }
     }
 
@@ -216,27 +211,12 @@
 
     function testRoutineStill() {
       send({ command: "loadModule", type: "Routine", module_id: ROUTINE_ID,
-        duration: 600000, audio: false, transition: "fade" });
+        duration: 600000, audio: false });
     }
 
     function testRoutineTon() {
       send({ command: "loadModule", type: "Routine", module_id: ROUTINE_ID,
-        duration: 600000, audio: true, voice: "male", transition: "fade" });
-    }
-
-    function testRoutineFade() {
-      send({ command: "loadModule", type: "Routine", module_id: ROUTINE_ID,
-        duration: 600000, audio: false, transition: "fade" });
-    }
-
-    function testRoutineSlide() {
-      send({ command: "loadModule", type: "Routine", module_id: ROUTINE_ID,
-        duration: 600000, audio: false, transition: "slide" });
-    }
-
-    function testRoutineNone() {
-      send({ command: "loadModule", type: "Routine", module_id: ROUTINE_ID,
-        duration: 600000, audio: false, transition: "none" });
+        duration: 600000, audio: true, voice: "male" });
     }
 
     // ── Custom ────────────────────────────────────────────────────────────
