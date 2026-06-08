@@ -6,7 +6,9 @@ export async function loadConfig(): Promise<AppConfig> {
   return _config
 }
 
-export async function loadDeviceConfig(): Promise<{ deviceId: string; token: string }> {
-  const { deviceId, token } = await loadConfig()
-  return { deviceId, token }
+export async function loadDeviceConfig(): Promise<{ deviceId: string }> {
+  // Import here to avoid circular dependency (tokenManager → loadConfig → tokenManager)
+  const { getTokenManager } = await import('./tokenManager')
+  const { deviceId } = await getTokenManager().getToken()
+  return { deviceId }
 }

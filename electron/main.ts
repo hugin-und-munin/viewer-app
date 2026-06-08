@@ -54,8 +54,8 @@ function requireEnv(key: string): string {
 function registerConfigHandlers() {
   ipcMain.handle("config:get", () => ({
     // all values come from the .env file in %APPDATA%\viewer-app\
-    deviceId:                 requireEnv("DEVICE_ID"),
-    token:                    requireEnv("API_TOKEN"),
+    clientId:                 requireEnv("CLIENT_ID"),
+    clientSecret:             requireEnv("CLIENT_SECRET"),
     apiUrl:                   requireEnv("VITE_API_URL"),
     disableCache:             process.env.VITE_DISABLE_CACHE    === "true",
     disablePrefetch:          process.env.VITE_DISABLE_PREFETCH === "true",

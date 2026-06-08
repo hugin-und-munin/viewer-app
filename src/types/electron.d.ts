@@ -1,7 +1,7 @@
 declare global {
   interface AppConfig {
-    deviceId: string
-    token: string
+    clientId: string
+    clientSecret: string
     apiUrl: string
     disableCache: boolean
     disablePrefetch: boolean

@@ -1,4 +1,5 @@
 import { loadConfig } from './deviceConfig'
+import { getTokenManager } from './tokenManager'
 
 type CacheEntry = {
   data: unknown
@@ -43,10 +44,6 @@ export class Api {
     }, 2000) // debounce — batches rapid successive writes into one
   }
 
-  setAuthToken(token: string): void {
-    this.headers['Authorization'] = `Bearer ${token}`
-  }
-
   clearCache(endpoint?: string): void {
     if (endpoint) {
       delete this.cache[endpoint]
@@ -64,27 +61,37 @@ export class Api {
     endpoint: string,
     options: RequestInit = {},
     timeoutMs = 3000,
+    retried = false,
   ): Promise<Response> {
+    const { accessToken } = await getTokenManager().getToken()
     const url = `${this.baseUrl}${endpoint}`
     const controller = new AbortController()
     const timerId = setTimeout(() => controller.abort(), timeoutMs)
+    let res: Response
     try {
-      const res = await fetch(url, {
+      res = await fetch(url, {
         ...options,
         signal: options.signal ?? controller.signal,
         headers: {
           ...this.headers,
+          Authorization: `Bearer ${accessToken}`,
           ...(options.headers as Record<string, string>),
         },
       })
       clearTimeout(timerId)
-      return res
     } catch (err) {
       clearTimeout(timerId)
       throw new Error(
         `Network error on ${options.method ?? 'GET'} ${url}: ${(err as Error).message}`,
       )
     }
+
+    if (res.status === 401 && !retried) {
+      getTokenManager().invalidate()
+      return this.rawFetch(endpoint, options, timeoutMs, true)
+    }
+
+    return res
   }
 
   private async parseJSON<T>(method: string, endpoint: string, res: Response): Promise<T> {

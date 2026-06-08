@@ -71,6 +71,7 @@ function useMessages(moduleId: string) {
         const entries = await getApi().get<ModuleDataEntry[]>(`/modules/${moduleId}/data`, {
           ttl: 0,
         })
+        console.log(`[Chat] module_data for ${moduleId}:`, entries)
         if (cancelled) return
 
         const base = entries

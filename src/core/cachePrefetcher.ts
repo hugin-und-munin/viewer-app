@@ -1,5 +1,5 @@
 import { getApi } from '../api/api'
-import { loadConfig } from '../api/deviceConfig'
+import { loadConfig, loadDeviceConfig } from '../api/deviceConfig'
 
 interface ModuleDataEntry {
   data: Record<string, unknown>
@@ -101,11 +101,11 @@ async function markDone(): Promise<void> {
 }
 
 export async function prefetchAll(): Promise<void> {
-  const { disablePrefetch, deviceId, token } = await loadConfig()
+  const { disablePrefetch } = await loadConfig()
   if (disablePrefetch) return
   if (await ranToday()) return
 
-  getApi().setAuthToken(token)
+  const { deviceId } = await loadDeviceConfig()
 
   let modules: ApiModule[]
   try {

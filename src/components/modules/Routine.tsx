@@ -21,25 +21,28 @@ const MORNING_END = 12
 const AFTERNOON_END = 20
 const EVENING_END = 24
 const CARD_GAP = 16
+const PAST_ALPHA = 0.3
+const FUTURE_ALPHA = 0.6
+const PAST_TEXT = '#424242'
 
 const DAY_COLORS: Record<number, string> = {
-  1: '#F5C518', // Montag     – Gelb
-  2: '#4CAF50', // Dienstag   – Grün
-  3: '#2196F3', // Mittwoch   – Blau
+  1: '#2196F3', // Montag     – Blau
+  2: '#F44336', // Dienstag   – Rot
+  3: '#F5C518', // Mittwoch   – Gelb
   4: '#FF9800', // Donnerstag – Orange
-  5: '#9C27B0', // Freitag    – Lila
-  6: '#E91E63', // Samstag    – Pink
-  0: '#00BCD4', // Sonntag    – Türkis
+  5: '#4CAF50', // Freitag    – Grün
+  6: '#9C27B0', // Samstag    – Lila
+  0: '#BDBDBD', // Sonntag    – Grau
 }
 
 const DAY_OUTLINE_COLORS: Record<number, string> = {
-  1: '#bd8d00', // Montag     – Gelb   (3.01:1)
-  2: '#44a748', // Dienstag   – Grün   (3.06:1)
-  3: '#2196F3', // Mittwoch   – Blau   (3.12:1, unchanged)
+  1: '#2196F3', // Montag     – Blau   (3.12:1)
+  2: '#E53935', // Dienstag   – Rot    (4.23:1)
+  3: '#bd8d00', // Mittwoch   – Gelb   (3.01:1)
   4: '#e17a00', // Donnerstag – Orange (3.01:1)
-  5: '#9C27B0', // Freitag    – Lila   (6.30:1, unchanged)
-  6: '#E91E63', // Samstag    – Pink   (4.35:1, unchanged)
-  0: '#00a2ba', // Sonntag    – Türkis (3.05:1)
+  5: '#44a748', // Freitag    – Grün   (3.06:1)
+  6: '#9C27B0', // Samstag    – Lila   (6.30:1)
+  0: '#757575', // Sonntag    – Grau   (4.61:1)
 }
 
 const DAY_NAMES = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag']
@@ -91,21 +94,49 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
-function darkenForWhiteText(hex: string): string {
-  const toLinear = (c: number) => {
-    const s = c / 255
-    return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
-  }
-  const luminance = (h: string) => {
-    const [r, g, b] = parseHex(h)
-    return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b)
-  }
+function toLinear(c: number): number {
+  const s = c / 255
+  return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
+}
 
+function luminanceOf(hex: string): number {
+  const [r, g, b] = parseHex(hex)
+  return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b)
+}
+
+function blendOnWhite(hex: string, alpha: number): string {
+  const [r, g, b] = parseHex(hex)
+  return (
+    '#' +
+    [r, g, b]
+      .map((c) =>
+        Math.round(c * alpha + 255 * (1 - alpha))
+          .toString(16)
+          .padStart(2, '0'),
+      )
+      .join('')
+  )
+}
+
+function darkenForWhiteText(hex: string): string {
   for (let amount = 0; amount <= 200; amount += 5) {
     const darkened = darkenColor(hex, amount)
-    if (1.05 / (luminance(darkened) + 0.05) >= 4.5) return darkened
+    if (1.05 / (luminanceOf(darkened) + 0.05) >= 4.5) return darkened
   }
   return darkenColor(hex, 200)
+}
+
+function resolveAccessiblePastBgColor(dayColor: string): string {
+  for (let a = Math.round(PAST_ALPHA * 100); a >= 0; a--) {
+    const alpha = a / 100
+    const bg = blendOnWhite(dayColor, alpha)
+    const L1 = luminanceOf(PAST_TEXT)
+    const L2 = luminanceOf(bg)
+    const lighter = Math.max(L1, L2)
+    const darker = Math.min(L1, L2)
+    if ((lighter + 0.05) / (darker + 0.05) >= 3) return hexToRgba(dayColor, alpha)
+  }
+  return hexToRgba(dayColor, 0)
 }
 
 // ─── Time helpers ─────────────────────────────────────────────────────────────
@@ -216,6 +247,10 @@ function useAppointments(moduleId: string) {
   useEffect(() => {
     getApi()
       .get<ModuleDataEntry[]>(`/modules/${moduleId}/data`, { ttl: 0 })
+      .then((entries) => {
+        console.log(`[Routine] module_data for ${moduleId}:`, entries)
+        return entries
+      })
       .then((entries) =>
         setAppointments(
           entries
@@ -405,7 +440,11 @@ function AppointmentCard({
   size: number
   animated: boolean
 }) {
-  const bgColor = isActive ? darkenForWhiteText(dayColor) : hexToRgba(dayColor, isPast ? 0.3 : 0.45)
+  const bgColor = isActive
+    ? darkenForWhiteText(dayColor)
+    : isPast
+      ? resolveAccessiblePastBgColor(dayColor)
+      : hexToRgba(dayColor, FUTURE_ALPHA)
 
   const maxFontSize = Math.round(size * 0.3)
   const { ref: textRef, fontSize } = useFitFontSize(appointment.title, maxFontSize)

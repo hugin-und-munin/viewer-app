@@ -1,5 +1,5 @@
 import { getApi } from './api'
-import { loadConfig } from './deviceConfig'
+import { loadDeviceConfig } from './deviceConfig'
 import type { ModuleProps } from '../types/modules'
 
 interface AppSettingsSummary {
@@ -37,21 +37,24 @@ function findActive(settings: AppSettingsSummary[]): AppSettingsSummary | undefi
 }
 
 export async function getCurrentModules(): Promise<ModuleProps[]> {
-  const { deviceId, token } = await loadConfig()
-  getApi().setAuthToken(token)
+  const { deviceId } = await loadDeviceConfig()
 
   const settings = await getApi().get<AppSettingsSummary[]>(`/devices/${deviceId}/appsettings`)
+  console.log('[appconfig] appsettings summaries:', settings)
   const active = findActive(settings)
+  console.log('[appconfig] active appsetting:', active)
   if (!active) return []
 
   const [detail, modules] = await Promise.all([
     getApi().get<AppSettingsDetail>(`/devices/${deviceId}/appsettings/${active.id}`),
     getApi().get<ApiModule[]>(`/modules`),
   ])
+  console.log('[appconfig] appsetting detail:', detail)
+  console.log('[appconfig] available modules:', modules)
 
   const typeById = new Map(modules.map((m) => [m.id, m.type]))
 
-  return detail.modules.map((entry) => {
+  const result = detail.modules.map((entry) => {
     const type = typeById.get(entry.module_id)
     if (!type) throw new Error(`No module definition found for ID: ${entry.module_id}`)
     const durationMs =
@@ -65,4 +68,6 @@ export async function getCurrentModules(): Promise<ModuleProps[]> {
       duration: durationMs,
     } as ModuleProps
   })
+  console.log('[appconfig] resolved modules for scheduler:', result.map((m) => ({ type: m.type, module_id: m.module_id, duration: m.duration, interval: m.interval })))
+  return result
 }
