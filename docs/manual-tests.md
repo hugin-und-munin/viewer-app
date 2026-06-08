@@ -73,12 +73,9 @@ Die App muss dazu laufen und `VITE_CONTROL_ENABLED=true` gesetzt sein.
 | VA-23 | Routine ohne Ton | — | 1. Control Panel: «Ohne Ton» | Termine werden angezeigt, keine Sprachausgabe |
 | VA-24 | Routine mit Ton | — | 1. Control Panel: «Mit Ton» | Aktueller und nächster Termin werden vorgelesen |
 | VA-25 | Korrekter Wochentag | Routine läuft | 1. Angezeigten Wochentag mit dem aktuellen Datum vergleichen | Wochentag ist korrekt |
-| VA-26 | Übergang Einblenden | — | 1. Control Panel: «Übergang Einblenden» | Termine blenden sanft ein |
-| VA-27 | Übergang Schieben | — | 1. Control Panel: «Übergang Schieben» | Termine schieben sich ins Bild |
-| VA-28 | Kein Übergang | — | 1. Control Panel: «Kein Übergang» | Termine erscheinen ohne Übergangsanimation |
-| VA-29 | Terminanzeige je Status | Vergangene, aktive und zukünftige Termine vorhanden | 1. Routine beobachten | Vergangene und zukünftige Termine erscheinen verblichen, aktiver Termin wird stärker hervorgehoben |
-| VA-30 | Termin mit Icon | Termin mit Icon vorhanden | 1. Routine beobachten | Icon wird korrekt angezeigt |
-| VA-31 | Termin ohne Icon | Termin ohne Icon vorhanden | 1. Routine beobachten | Anstelle des Icons wird der Titel angezeigt |
+| VA-26 | Terminanzeige je Status | Vergangene, aktive und zukünftige Termine vorhanden | 1. Routine beobachten | Vergangene und zukünftige Termine erscheinen verblichen, aktiver Termin wird stärker hervorgehoben |
+| VA-27 | Termin mit Icon | Termin mit Icon vorhanden | 1. Routine beobachten | Icon wird korrekt angezeigt |
+| VA-28 | Termin ohne Icon | Termin ohne Icon vorhanden | 1. Routine beobachten | Anstelle des Icons wird der Titel angezeigt |
 
 ---
 
@@ -86,5 +83,5 @@ Die App muss dazu laufen und `VITE_CONTROL_ENABLED=true` gesetzt sein.
 
 | ID | Testfall | Voraussetzungen | Testschritte | Erwartetes Ergebnis |
 |---|---|---|---|---|
-| VA-32 | App läuft ohne Netzwerkverbindung | App läuft, Daten gecacht | 1. Netzwerkverbindung trennen<br>2. App beobachten | App läuft mit gecachten Daten weiter |
-| VA-33 | Netzwerkverbindung wird wiederhergestellt | App läuft offline | 1. Netzwerkverbindung wiederherstellen<br>2. Bis zu 20 Sekunden warten | App lädt aktuelle Konfiguration |
+| VA-29 | App läuft ohne Netzwerkverbindung | App läuft, Daten gecacht | 1. Netzwerkverbindung trennen<br>2. App beobachten | App läuft mit gecachten Daten weiter |
+| VA-30 | Netzwerkverbindung wird wiederhergestellt | App läuft offline | 1. Netzwerkverbindung wiederherstellen<br>2. Bis zu 20 Sekunden warten | App lädt aktuelle Konfiguration |
