@@ -285,3 +285,74 @@ describe('Api.get — caching and offline fallback', () => {
     vi.useRealTimers()
   })
 })
+
+// ── Helpers for blob tests ─────────────────────────────────────────────────
+
+function blobResponse(content: string, mimeType: string): Response {
+  return {
+    ok: true,
+    status: 200,
+    headers: { get: () => null },
+    blob: () => Promise.resolve(new Blob([content], { type: mimeType })),
+  } as unknown as Response
+}
+
+// ── getBlob — media caching ────────────────────────────────────────────────
+
+describe('Api.getBlob — media fetching and caching', () => {
+  let fetchMock: ReturnType<typeof vi.fn>
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockElectronAPI()
+    fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    vi.stubGlobal('URL', { createObjectURL: vi.fn().mockReturnValue('blob:fake-url') })
+    mockLoadConfig.mockResolvedValue(defaultConfig())
+  })
+
+  // ── 1. Happy path ──────────────────────────────────────────────────────
+
+  it('fetches blob from network and returns an object URL', async () => {
+    const api = new Api('http://localhost')
+    fetchMock.mockResolvedValueOnce(blobResponse('imgdata', 'image/png'))
+
+    const result = await api.getBlob('/photo.png')
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(result).toBe('blob:fake-url')
+  })
+
+  it('returns null when server responds with a non-ok status', async () => {
+    const api = new Api('http://localhost')
+    fetchMock.mockResolvedValueOnce(statusResponse(404))
+
+    const result = await api.getBlob('/missing.png')
+
+    expect(result).toBeNull()
+  })
+
+  // ── 2. Disk cache hit ──────────────────────────────────────────────────
+
+  it('returns blob URL from disk cache without a network request', async () => {
+    // A valid data-URL that cacheRead would return
+    const fakeDataUrl = 'data:image/png;base64,aGVsbG8=' // base64("hello")
+    mockElectronAPI({ cacheRead: vi.fn().mockResolvedValue(fakeDataUrl) })
+
+    const api = new Api('http://localhost')
+    const result = await api.getBlob('/photo.png')
+
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(result).toBe('blob:fake-url')
+  })
+
+  it('falls through to network when disk cache is empty', async () => {
+    mockElectronAPI({ cacheRead: vi.fn().mockResolvedValue(null) })
+    fetchMock.mockResolvedValueOnce(blobResponse('data', 'image/jpeg'))
+
+    const api = new Api('http://localhost')
+    await api.getBlob('/photo.jpg')
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+})
