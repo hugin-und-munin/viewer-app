@@ -5,6 +5,14 @@ import { Api } from './api'
 vi.mock('./deviceConfig', () => ({
   loadConfig: vi.fn(),
 }))
+
+// Mock tokenManager so rawFetch doesn't make a real /auth/token fetch call
+vi.mock('./tokenManager', () => ({
+  getTokenManager: vi.fn(() => ({
+    getToken: vi.fn().mockResolvedValue({ accessToken: 'test-token', deviceId: 'dev-1' }),
+    invalidate: vi.fn(),
+  })),
+}))
 import { loadConfig } from './deviceConfig'
 const mockLoadConfig = loadConfig as ReturnType<typeof vi.fn>
 
@@ -48,8 +56,8 @@ function statusResponse(status: number, statusText = ''): Response {
 
 function defaultConfig(overrides: Partial<AppConfig> = {}): AppConfig {
   return {
-    deviceId: 'dev-1',
-    token: 'tok',
+    clientId: 'dev-1',
+    clientSecret: 'tok',
     apiUrl: 'http://api',
     disableCache: false,
     disablePrefetch: false,

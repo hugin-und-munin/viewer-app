@@ -68,6 +68,14 @@ export async function getCurrentModules(): Promise<ModuleProps[]> {
       duration: durationMs,
     } as ModuleProps
   })
-  console.log('[appconfig] resolved modules for scheduler:', result.map((m) => ({ type: m.type, module_id: m.module_id, duration: m.duration, interval: m.interval })))
+  console.log(
+    '[appconfig] resolved modules for scheduler:',
+    result.map((m) => ({
+      type: m.type,
+      module_id: m.module_id,
+      duration: m.duration,
+      interval: m.interval,
+    })),
+  )
   return result
 }
