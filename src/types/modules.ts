@@ -14,6 +14,7 @@ export interface ChatProps extends BaseModule {
   fontSize?: 'small' | 'medium' | 'large'
   readingSpeed?: 'slow' | 'normal' | 'fast'
   theme?: 'light' | 'dark'
+  recentMessageCount?: number
 }
 
 export interface RoutineProps extends BaseModule {

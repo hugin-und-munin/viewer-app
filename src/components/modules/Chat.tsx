@@ -10,7 +10,7 @@ import { speak, stop, getVoices } from '../../utils/tts'
 const PAUSE_MS = 2000
 const DISPLAY_MS = 5000
 const IMAGE_DISPLAY_MS = 60000
-const MESSAGES_SINCE_DAYS = 50
+const DEFAULT_RECENT_MESSAGE_COUNT = 10
 const FONT = "'Atkinson Hyperlegible', sans-serif"
 
 const READING_RATE: Record<string, number> = { slow: 0.7, normal: 1.0, fast: 1.4 }
@@ -49,6 +49,7 @@ interface ModuleDataEntry {
     media_id?: string
   }
   created_at: string
+  display_count: number
 }
 
 interface UserPublicProfile {
@@ -57,9 +58,24 @@ interface UserPublicProfile {
   media_id: string | null
 }
 
+// ─── Message selection ────────────────────────────────────────────────────────
+
+// Takes the `count` most recent entries, then orders them for playback by
+// display_count ascending (least-shown first) and created_at ascending as a
+// tiebreaker (oldest of the equally-shown first) — a fair-rotation order.
+function selectRecentEntries(entries: ModuleDataEntry[], count: number): ModuleDataEntry[] {
+  const mostRecent = [...entries]
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, count)
+  return mostRecent.sort((a, b) => {
+    if (a.display_count !== b.display_count) return a.display_count - b.display_count
+    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  })
+}
+
 // ─── Hooks ────────────────────────────────────────────────────────────────────
 
-function useMessages(moduleId: string) {
+function useMessages(moduleId: string, recentMessageCount: number) {
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -74,10 +90,7 @@ function useMessages(moduleId: string) {
         console.log(`[Chat] module_data for ${moduleId}:`, entries)
         if (cancelled) return
 
-        const base = entries
-          .slice()
-          .reverse()
-          .slice(-MESSAGES_SINCE_DAYS)
+        const base = selectRecentEntries(entries, recentMessageCount)
           .map((e) => ({
             id: e.id,
             user_id: e.data.user_id,
@@ -117,7 +130,7 @@ function useMessages(moduleId: string) {
     return () => {
       cancelled = true
     }
-  }, [moduleId])
+  }, [moduleId, recentMessageCount])
 
   return { messages, loading, error }
 }
@@ -236,22 +249,6 @@ function speakMessage(
   })
 }
 
-function loadResumeIndex(moduleId: string): number {
-  try {
-    return Math.max(0, parseInt(localStorage.getItem(`chat-resume-${moduleId}`) ?? '0', 10) || 0)
-  } catch {
-    return 0
-  }
-}
-
-function saveResumeIndex(moduleId: string, index: number): void {
-  try {
-    localStorage.setItem(`chat-resume-${moduleId}`, String(index))
-  } catch {
-    /* ignore */
-  }
-}
-
 function useMessagePlayback(params: {
   moduleId: string
   messages: Message[]
@@ -278,32 +275,6 @@ function useMessagePlayback(params: {
   } = params
   const [index, setIndex] = useState(0)
 
-  const indexRef = useRef(0)
-  const messagesRef = useRef<Message[]>([])
-  const resumeApplied = useRef(false)
-  useEffect(() => {
-    indexRef.current = index
-  }, [index])
-  useEffect(() => {
-    messagesRef.current = messages
-  }, [messages])
-
-  useEffect(() => {
-    if (loading || messages.length === 0 || resumeApplied.current) return
-    resumeApplied.current = true
-    const saved = loadResumeIndex(moduleId)
-    const next = saved + 1
-    if (saved > 0 && next < messages.length) setIndex(next)
-  }, [loading, messages.length, moduleId])
-
-  useEffect(() => {
-    return () => {
-      const cur = indexRef.current
-      const total = messagesRef.current.length
-      if (total === 0) return
-      saveResumeIndex(moduleId, cur >= total ? 0 : cur)
-    }
-  }, [moduleId])
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const interruptDoneRef = useShutdownRequest(onShutdownRequest, onModuleDone, audioRef)
 
@@ -365,6 +336,10 @@ function useMessagePlayback(params: {
 
     const msg = messages[index]
     const name = msg.username || 'Unbekannt'
+
+    getApi()
+      .post(`/modules/${moduleId}/data/${msg.id}/shown`, {})
+      .catch(() => {})
 
     if (msg.type === 'text') {
       if (audio) {
@@ -439,7 +414,7 @@ function useMessagePlayback(params: {
       }
       stop()
     }
-  }, [index, messages, loading, audio, bubbleRef, audioRef, interruptDoneRef])
+  }, [index, messages, loading, audio, bubbleRef, audioRef, interruptDoneRef, moduleId])
 
   return { index, mediaBlobUrl }
 }
@@ -827,10 +802,11 @@ function Chat({
   fontSize = 'medium',
   readingSpeed = 'normal',
   theme = 'light',
+  recentMessageCount = DEFAULT_RECENT_MESSAGE_COUNT,
   onShutdownRequest,
   onModuleDone,
 }: ChatProps) {
-  const { messages, loading, error } = useMessages(module_id)
+  const { messages, loading, error } = useMessages(module_id, recentMessageCount)
   const bubbleRef = useRef<HTMLDivElement>(null)
   const audioRef = useRef<HTMLAudioElement>(null)
   const ttsVoice = useVoice(audio ? voice : undefined)
