@@ -5,14 +5,21 @@ import {
   showModule as showModuleDefault,
   clearModule as clearModuleDefault,
 } from './moduleDisplayManager'
+import { logEvent as logEventDefault } from '../logging/deviceLogger'
 import { EventQueue } from './eventQueue'
 
 type State = 'IDLE' | 'SHOWING' | 'SHUTTING_DOWN'
+
+// A module that never calls onModuleDone after a shutdown request (e.g. a TTS
+// "onEnd" that never fires) would otherwise wedge the scheduler in
+// SHUTTING_DOWN forever — nothing else would ever show again.
+const SHUTDOWN_TIMEOUT_MS = 0.25 * 60 * 1000
 
 type Deps = {
   showModule: (props: ModuleProps) => void
   clearModule: () => void
   scheduleAtInterval: (minutes: 15 | 30 | 60, cb: () => void) => () => void
+  logEvent: typeof logEventDefault
 }
 
 export default class ModuleScheduler {
@@ -26,6 +33,8 @@ export default class ModuleScheduler {
   private intervalStops: Array<() => void> = []
 
   private durationTimer?: ReturnType<typeof setTimeout>
+  private shutdownWatchdog?: ReturnType<typeof setTimeout>
+  private currentModuleType?: string
 
   private queue = new EventQueue()
   private shutdownTrigger?: () => void
@@ -37,6 +46,7 @@ export default class ModuleScheduler {
       showModule: showModuleDefault,
       clearModule: clearModuleDefault,
       scheduleAtInterval: scheduleAtIntervalDefault,
+      logEvent: logEventDefault,
       ...deps,
     }
     this.initModules(modules)
@@ -51,6 +61,7 @@ export default class ModuleScheduler {
     this.stopped = true
     this.stopIntervalSchedules()
     this.clearDurationTimer()
+    this.clearShutdownWatchdog()
     this.queue.clear()
     this.state = 'IDLE'
   }
@@ -110,7 +121,29 @@ export default class ModuleScheduler {
     this.clearDurationTimer()
 
     if (this.shutdownTrigger) {
+      // Captured before calling the trigger: a module with nothing to wrap up
+      // (e.g. no TTS/audio playing) may call onModuleDone synchronously from
+      // within the trigger, which advances to and runs the *next* module
+      // before this line would otherwise read it.
+      const moduleType = this.currentModuleType
       this.shutdownTrigger() // signal module to wrap up; it will call onModuleDone when done
+
+      // If that already completed the shutdown synchronously (state moved
+      // past SHUTTING_DOWN), there's nothing left to watch — arming a
+      // watchdog here would incorrectly fire against whatever module is
+      // running now, which never asked to be interrupted.
+      if (this.state !== 'SHUTTING_DOWN') return
+
+      this.shutdownWatchdog = setTimeout(() => {
+        console.warn(`[ModuleScheduler] ${moduleType} did not respond to shutdown within ${SHUTDOWN_TIMEOUT_MS}ms — forcing interrupt`)
+        this.deps.logEvent({
+          level: 'error',
+          source: 'module',
+          moduleType,
+          message: `module did not respond to shutdown within ${SHUTDOWN_TIMEOUT_MS / 1000}s — forced interrupt`,
+        })
+        this.handleModuleDone()
+      }, SHUTDOWN_TIMEOUT_MS)
     } else {
       this.handleModuleDone() // no cleanup registered — advance immediately
     }
@@ -119,6 +152,7 @@ export default class ModuleScheduler {
   private handleModuleDone(): void {
     if (this.stopped || this.state === 'IDLE') return
     this.clearDurationTimer()
+    this.clearShutdownWatchdog()
     console.log('[ModuleScheduler] handleModuleDone — transitioning to IDLE')
     this.state = 'IDLE'
 
@@ -159,6 +193,7 @@ export default class ModuleScheduler {
     console.log('[ModuleScheduler] showing module', module)
     this.state = 'SHOWING'
     this.shutdownTrigger = undefined
+    this.currentModuleType = module.type
 
     this.deps.showModule({
       ...module,
@@ -182,6 +217,13 @@ export default class ModuleScheduler {
     if (this.durationTimer) {
       clearTimeout(this.durationTimer)
       this.durationTimer = undefined
+    }
+  }
+
+  private clearShutdownWatchdog(): void {
+    if (this.shutdownWatchdog) {
+      clearTimeout(this.shutdownWatchdog)
+      this.shutdownWatchdog = undefined
     }
   }
 }

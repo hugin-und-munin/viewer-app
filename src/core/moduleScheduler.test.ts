@@ -22,6 +22,7 @@ const time = (interval: 15 | 30 | 60 = 15, duration = 5_000): ModuleProps =>
 function makeDeps() {
   const showModule = vi.fn<(props: ModuleProps) => void>()
   const clearModule = vi.fn<() => void>()
+  const logEvent = vi.fn()
 
   // keeps track of each interval callback so tests can fire them on demand
   const intervalCallbacks: Array<() => void> = []
@@ -34,7 +35,7 @@ function makeDeps() {
     return stop
   })
 
-  return { showModule, clearModule, scheduleAtInterval, intervalCallbacks, intervalStops }
+  return { showModule, clearModule, scheduleAtInterval, logEvent, intervalCallbacks, intervalStops }
 }
 
 /**
@@ -350,6 +351,71 @@ describe('ModuleScheduler', () => {
       vi.advanceTimersByTime(5_000)
       expect(deps.showModule).toHaveBeenCalledTimes(3)
       expect(shownAt(deps.showModule, 2).interval).toBe(30) // timeB
+    })
+  })
+
+  // ── Shutdown watchdog ───────────────────────────────────────────────────
+
+  describe('shutdown watchdog', () => {
+    it('force-advances if the module never calls onModuleDone within 2 minutes', () => {
+      // A module registers a shutdown trigger but — e.g. a TTS "onEnd" that
+      // never fires — never calls onModuleDone. Without a watchdog the
+      // scheduler would stay wedged in SHUTTING_DOWN forever.
+      const deps = makeDeps()
+      const s = new ModuleScheduler([routine(10_000), chat()], deps)
+      s.start()
+
+      shownAt(deps.showModule).onShutdownRequest?.(() => {
+        /* cleanup registered, but never calls onModuleDone */
+      })
+
+      vi.advanceTimersByTime(10_000) // DurationExpired → SHUTTING_DOWN, watchdog armed
+      expect(deps.showModule).toHaveBeenCalledTimes(1) // still stuck on Routine so far
+
+      vi.advanceTimersByTime(2 * 60 * 1000) // watchdog fires
+
+      expect(deps.showModule).toHaveBeenCalledTimes(2)
+      expect(shownAt(deps.showModule, 1).type).toBe('Chat')
+      expect(deps.logEvent).toHaveBeenCalledWith(
+        expect.objectContaining({ level: 'error', source: 'module', moduleType: 'Routine' }),
+      )
+    })
+
+    it('does not fire the watchdog if the module responds in time', () => {
+      // Chat gets a long duration so it can't self-expire during the 2-minute
+      // window below — that would advance the scheduler for an unrelated
+      // reason and produce a false pass.
+      const deps = makeDeps()
+      const s = new ModuleScheduler([routine(10_000), chat(600_000)], deps)
+      s.start()
+
+      shownAt(deps.showModule).onShutdownRequest?.(() => {
+        shownAt(deps.showModule).onModuleDone?.()
+      })
+
+      vi.advanceTimersByTime(10_000) // DurationExpired → shutdown → module responds immediately
+      expect(deps.showModule).toHaveBeenCalledTimes(2)
+
+      vi.advanceTimersByTime(2 * 60 * 1000) // watchdog would have fired here if not cleared
+      expect(deps.showModule).toHaveBeenCalledTimes(2) // no extra advance
+      expect(deps.logEvent).not.toHaveBeenCalled()
+    })
+
+    it('clears a pending watchdog on forceStop so it cannot fire later', () => {
+      const deps = makeDeps()
+      const s = new ModuleScheduler([routine(10_000), chat()], deps)
+      s.start()
+
+      shownAt(deps.showModule).onShutdownRequest?.(() => {
+        /* never calls onModuleDone */
+      })
+      vi.advanceTimersByTime(10_000) // arms the watchdog
+
+      s.forceStop()
+      vi.advanceTimersByTime(2 * 60 * 1000)
+
+      expect(deps.showModule).toHaveBeenCalledTimes(1) // no forced advance after stop
+      expect(deps.logEvent).not.toHaveBeenCalled()
     })
   })
 
