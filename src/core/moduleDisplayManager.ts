@@ -10,10 +10,16 @@ type ModulePropsMap = {
 type ModuleComponent<P = ModuleProps> = (props: P) => React.ReactNode
 
 export interface Module<K extends ModuleName = ModuleName> {
+  // Unique per showModule() call (not just per type) so React always mounts
+  // a fresh component instance — see ModuleRenderer's key. Without this, two
+  // consecutive loads of the same module type reuse the old instance instead
+  // of restarting it (index/TTS/refs carry over instead of resetting).
+  instanceId: number
   component: ModuleComponent<ModulePropsMap[K]>
   props: ModulePropsMap[K]
 }
 
+let nextInstanceId = 0
 const listeners: ((module: Module | null) => void)[] = []
 let displayedModule: Module | null = null
 
@@ -35,7 +41,7 @@ export function showModule(props: ModuleProps): void {
     return
   }
 
-  displayedModule = { component, props } as Module<typeof type>
+  displayedModule = { instanceId: ++nextInstanceId, component, props } as Module<typeof type>
   listeners.forEach((fn) => fn(displayedModule))
   logEvent({ level: 'info', source: 'module', moduleType: type, message: 'module loaded' })
 }

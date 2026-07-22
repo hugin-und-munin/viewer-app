@@ -45,9 +45,9 @@ function ModuleRenderer() {
 
   if (!moduleData) return <IdleScreen />
 
-  const { component: Module, props } = moduleData
+  const { component: Module, props, instanceId } = moduleData
   return (
-    <ModuleErrorBoundary moduleType={props.type} key={props.type}>
+    <ModuleErrorBoundary moduleType={props.type} key={instanceId}>
       <Module {...props} />
     </ModuleErrorBoundary>
   )

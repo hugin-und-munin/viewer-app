@@ -54,6 +54,7 @@ function BackgroundController() {
     const onLoadModule = (module: LoadModuleCommand) => {
       configService.stop()
       stopScheduler()
+      clearModule()
       if (overrideTimer) clearTimeout(overrideTimer)
       showModule({
         ...module,
