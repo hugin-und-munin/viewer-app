@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Module } from '../core/moduleDisplayManager'
 import { onModuleChange, offModuleChange } from '../core/moduleDisplayManager'
+import ModuleErrorBoundary from './ModuleErrorBoundary'
 import logo from '../assets/logo.png'
 import './ModuleRenderer.css'
 
@@ -45,7 +46,11 @@ function ModuleRenderer() {
   if (!moduleData) return <IdleScreen />
 
   const { component: Module, props } = moduleData
-  return <Module {...props} />
+  return (
+    <ModuleErrorBoundary moduleType={props.type} key={props.type}>
+      <Module {...props} />
+    </ModuleErrorBoundary>
+  )
 }
 
 export default ModuleRenderer

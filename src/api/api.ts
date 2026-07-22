@@ -1,5 +1,7 @@
 import { loadConfig } from './deviceConfig'
-import { getTokenManager } from './tokenManager'
+import { getTokenManager, AuthError } from './tokenManager'
+import { reportFailure, reportSuccess, reportAuthFailure, reportAuthSuccess } from '../logging/networkMonitor'
+import { reportStorageFailure } from '../logging/storageMonitor'
 
 type CacheEntry = {
   data: unknown
@@ -40,7 +42,9 @@ export class Api {
     if (!window.electronAPI) return
     clearTimeout(this.saveCacheTimer)
     this.saveCacheTimer = setTimeout(() => {
-      window.electronAPI!.cacheWrite(this.cacheFile, JSON.stringify(this.cache)).catch(() => {})
+      window.electronAPI!.cacheWrite(this.cacheFile, JSON.stringify(this.cache)).catch(() => {
+        reportStorageFailure('api-cache-write', 'failed to write local API response cache to disk')
+      })
     }, 2000) // debounce — batches rapid successive writes into one
   }
 
@@ -63,12 +67,14 @@ export class Api {
     timeoutMs = 3000,
     retried = false,
   ): Promise<Response> {
-    const { accessToken } = await getTokenManager().getToken()
     const url = `${this.baseUrl}${endpoint}`
     const controller = new AbortController()
     const timerId = setTimeout(() => controller.abort(), timeoutMs)
     let res: Response
     try {
+      // Token fetch is inside the try too — a network failure while acquiring
+      // the token is just as much a connectivity problem as the request itself.
+      const { accessToken } = await getTokenManager().getToken()
       res = await fetch(url, {
         ...options,
         signal: options.signal ?? controller.signal,
@@ -81,10 +87,20 @@ export class Api {
       clearTimeout(timerId)
     } catch (err) {
       clearTimeout(timerId)
+      if (err instanceof AuthError) {
+        reportAuthFailure()
+      } else {
+        reportFailure()
+      }
       throw new Error(
         `Network error on ${options.method ?? 'GET'} ${url}: ${(err as Error).message}`,
       )
     }
+
+    // Reaching the server at all — any status code — means both connectivity
+    // and authentication are fine (the token was accepted to get this far).
+    reportSuccess()
+    reportAuthSuccess()
 
     if (res.status === 401 && !retried) {
       getTokenManager().invalidate()

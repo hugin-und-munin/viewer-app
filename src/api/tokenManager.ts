@@ -1,5 +1,10 @@
 import { loadConfig } from './deviceConfig'
 
+// Thrown when the auth server responded but rejected the credentials
+// (bad/revoked client_secret, etc.) — distinguishable from a plain network
+// failure (fetch throwing) so callers can report the two differently.
+export class AuthError extends Error {}
+
 interface TokenResponse {
   access_token: string
   token_type: string
@@ -51,7 +56,7 @@ class TokenManager {
           const err = await res.json()
           detail = err.error_description ?? err.error ?? ''
         } catch {}
-        throw new Error(`[auth] token fetch failed (${res.status}): ${detail}`)
+        throw new AuthError(`[auth] token fetch failed (${res.status}): ${detail}`)
       }
 
       const data: TokenResponse = await res.json()

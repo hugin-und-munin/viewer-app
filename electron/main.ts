@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain } from "electron";
 import log from "electron-log/main";
 import pkg from "electron-updater";
+import { logDeviceEvent } from "./deviceLogClient";
 const { autoUpdater } = pkg;
 
 log.initialize();
@@ -130,6 +131,19 @@ function createWindow(): BrowserWindow {
 
   win.once("ready-to-show", () => win.show());
 
+  win.webContents.on("render-process-gone", (_event, details) => {
+    log.error("[renderer] process gone:", details.reason);
+    void logDeviceEvent("error", "app", `renderer crashed: ${details.reason}`);
+  });
+  win.webContents.on("unresponsive", () => {
+    log.warn("[renderer] became unresponsive");
+    void logDeviceEvent("warn", "app", "renderer unresponsive");
+  });
+  win.webContents.on("responsive", () => {
+    log.info("[renderer] responsive again");
+    void logDeviceEvent("info", "app", "renderer responsive again");
+  });
+
   // In dev load Vite dev server, in prod load built index.html
   if (process.env.NODE_ENV === "development") {
     win.loadURL("http://localhost:5173");
@@ -153,7 +167,10 @@ function setupAutoUpdater() {
   autoUpdater.on("checking-for-update", () => log.info("[updater] checking for update..."));
   autoUpdater.on("update-available", (info) => log.info("[updater] update available:", info.version));
   autoUpdater.on("update-not-available", (info) => log.info("[updater] up to date:", info.version));
-  autoUpdater.on("error", (err) => log.error("[updater] error:", err));
+  autoUpdater.on("error", (err) => {
+    log.error("[updater] error:", err);
+    void logDeviceEvent("error", "app", `update check failed: ${err.message}`);
+  });
 
   autoUpdater.checkForUpdates();
 
@@ -170,6 +187,7 @@ app.whenReady().then(() => {
   const win = createWindow();
   if (process.env.VITE_CONTROL_ENABLED === "true") startControlServer(win);
   setupAutoUpdater();
+  void logDeviceEvent("info", "lifecycle", `app started (v${app.getVersion()})`);
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -178,4 +196,19 @@ app.whenReady().then(() => {
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
+});
+
+// app.quit() kills the process as soon as 'before-quit' returns, which would
+// abort the fire-and-forget log request mid-flight. Delay the actual quit
+// just long enough to give it a chance to land (capped so a dead network
+// can't hang shutdown) — but only once, so the second pass (after re-calling
+// app.quit()) goes through immediately.
+let quitLogSent = false;
+app.on("before-quit", (event) => {
+  if (quitLogSent) return;
+  quitLogSent = true;
+  event.preventDefault();
+  const deadline = new Promise<void>((resolve) => setTimeout(resolve, 2000));
+  Promise.race([logDeviceEvent("info", "lifecycle", `app shutting down (v${app.getVersion()})`), deadline])
+    .finally(() => app.quit());
 });

@@ -1,5 +1,6 @@
 import { EventEmitter } from 'events'
 import type { ModuleProps } from '../types/modules'
+import { logEvent } from '../logging/deviceLogger'
 
 export interface PauseCommand {
   duration: number // minutes
@@ -42,10 +43,12 @@ export class ControlService extends EventEmitter {
 
     if (msg.command === 'pause' && typeof msg.duration === 'number') {
       console.log('[ControlService] emitting pause:', msg.duration, 'min')
+      logEvent({ level: 'info', source: 'control', message: `pause (${msg.duration} min)` })
       this.emit('pause', { duration: msg.duration } satisfies PauseCommand)
     } else if (msg.command === 'loadModule') {
       const { command: _command, ...rest } = msg
       console.log('[ControlService] emitting loadModule:', rest)
+      logEvent({ level: 'info', source: 'control', moduleType: rest.type, message: `loadModule (${rest.type})` })
       this.emit('loadModule', rest as LoadModuleCommand)
     } else {
       console.warn('[ControlService] unknown command:', (msg as Record<string, unknown>).command)

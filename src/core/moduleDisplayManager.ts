@@ -1,5 +1,6 @@
 import type { ModuleProps } from '../types/modules'
 import { moduleRegistry, type ModuleName } from './moduleRegistry'
+import { logEvent } from '../logging/deviceLogger'
 
 // Maps each ModuleName to its component's props, e.g. Time → TimeProps
 type ModulePropsMap = {
@@ -29,8 +30,14 @@ export function showModule(props: ModuleProps): void {
   const type = props.type as ModuleName
   const component = moduleRegistry[type]
 
+  if (!component) {
+    logEvent({ level: 'error', source: 'module', moduleType: type, message: 'unknown module type' })
+    return
+  }
+
   displayedModule = { component, props } as Module<typeof type>
   listeners.forEach((fn) => fn(displayedModule))
+  logEvent({ level: 'info', source: 'module', moduleType: type, message: 'module loaded' })
 }
 
 export function clearModule(): void {

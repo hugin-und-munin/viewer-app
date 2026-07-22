@@ -62,9 +62,14 @@ function BackgroundController() {
       overrideTimer = setTimeout(endOverride, module.duration)
     }
 
-    // controlEnabled is read async from runtime config; the variable is
-    // captured by reference in the closure so the cleanup sees the final value.
-    let controlEnabled = false
+    // controlEnabled is read async from runtime config. `cancelled` guards
+    // against the effect having already been cleaned up by the time this
+    // resolves (React StrictMode runs mount→cleanup→mount once in dev,
+    // and the cleanup can fire before this promise settles) — without it,
+    // a stale instance could start listening after teardown and never get
+    // stopped, leaving two ControlServices registered and every command
+    // handled (and logged) twice.
+    let cancelled = false
 
     configService.on('configChanged', onConfigChanged)
     configService.start()
@@ -72,21 +77,20 @@ function BackgroundController() {
     prefetchAll().catch(() => {})
     const prefetchIntervalId = setInterval(() => prefetchAll().catch(() => {}), 1 * 60 * 60 * 1000)
 
-    loadConfig().then(({ controlEnabled: enabled }) => {
-      controlEnabled = enabled
-      if (controlEnabled) {
-        controlService.on('pause', onPause)
-        controlService.on('loadModule', onLoadModule)
-        controlService.start()
-      }
+    loadConfig().then(({ controlEnabled }) => {
+      if (cancelled || !controlEnabled) return
+      controlService.on('pause', onPause)
+      controlService.on('loadModule', onLoadModule)
+      controlService.start()
     })
 
     return () => {
+      cancelled = true
       clearInterval(prefetchIntervalId)
       if (overrideTimer) clearTimeout(overrideTimer)
       stopScheduler()
       configService.stop()
-      if (controlEnabled) controlService.stop()
+      controlService.stop() // safe no-op if start() was never called
       configService.off('configChanged', onConfigChanged)
       controlService.off('pause', onPause)
       controlService.off('loadModule', onLoadModule)

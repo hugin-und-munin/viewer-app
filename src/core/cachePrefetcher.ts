@@ -1,5 +1,6 @@
 import { getApi } from '../api/api'
 import { loadConfig, loadDeviceConfig } from '../api/deviceConfig'
+import { reportStorageFailure } from '../logging/storageMonitor'
 
 interface ModuleDataEntry {
   data: Record<string, unknown>
@@ -97,7 +98,11 @@ async function ranToday(): Promise<boolean> {
 
 async function markDone(): Promise<void> {
   if (!window.electronAPI) return
-  await window.electronAPI.cacheWrite(PREFETCH_DATE_FILE, JSON.stringify({ date: today() }))
+  try {
+    await window.electronAPI.cacheWrite(PREFETCH_DATE_FILE, JSON.stringify({ date: today() }))
+  } catch {
+    reportStorageFailure('prefetch-date-write', 'failed to write prefetch-date marker to disk')
+  }
 }
 
 export async function prefetchAll(): Promise<void> {

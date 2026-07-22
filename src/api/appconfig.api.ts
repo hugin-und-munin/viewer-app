@@ -1,5 +1,6 @@
 import { getApi } from './api'
 import { loadDeviceConfig } from './deviceConfig'
+import { logEvent } from '../logging/deviceLogger'
 import type { ModuleProps } from '../types/modules'
 
 interface AppSettingsSummary {
@@ -36,6 +37,10 @@ function findActive(settings: AppSettingsSummary[]): AppSettingsSummary | undefi
     .sort((a, b) => new Date(b.valid_from).getTime() - new Date(a.valid_from).getTime())[0]
 }
 
+// Tracks whether the previous call found no active config, so the idle-screen
+// warning is logged once per transition instead of every ~20s poll.
+let wasIdle = false
+
 export async function getCurrentModules(): Promise<ModuleProps[]> {
   const { deviceId } = await loadDeviceConfig()
 
@@ -43,7 +48,17 @@ export async function getCurrentModules(): Promise<ModuleProps[]> {
   console.log('[appconfig] appsettings summaries:', settings)
   const active = findActive(settings)
   console.log('[appconfig] active appsetting:', active)
-  if (!active) return []
+  if (!active) {
+    if (!wasIdle) {
+      wasIdle = true
+      logEvent({ level: 'warn', source: 'app', message: 'no active appsettings for current time — idle screen' })
+    }
+    return []
+  }
+  if (wasIdle) {
+    wasIdle = false
+    logEvent({ level: 'info', source: 'app', message: 'active appsettings resumed' })
+  }
 
   const [detail, modules] = await Promise.all([
     getApi().get<AppSettingsDetail>(`/devices/${deviceId}/appsettings/${active.id}`),
@@ -56,7 +71,9 @@ export async function getCurrentModules(): Promise<ModuleProps[]> {
 
   const result = detail.modules.map((entry) => {
     const type = typeById.get(entry.module_id)
-    if (!type) throw new Error(`No module definition found for ID: ${entry.module_id}`)
+    if (!type) {
+      throw new Error(`No module definition found for module_id=${entry.module_id} in appsetting=${active.id}`)
+    }
     const durationMs =
       typeof entry.settings.duration === 'number'
         ? entry.settings.duration * 60 * 1000 // duration in minutes → ms
