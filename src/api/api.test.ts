@@ -24,6 +24,7 @@ function mockElectronAPI(overrides: Partial<typeof window.electronAPI> = {}) {
     appVersion: vi.fn(),
     cacheRead: vi.fn().mockResolvedValue(null), // no disk cache by default
     cacheWrite: vi.fn().mockResolvedValue(undefined),
+    synthesizeSpeech: vi.fn(),
     onControl: vi.fn(),
     offControl: vi.fn(),
     ...overrides,

@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain } from "electron";
 import log from "electron-log/main";
 import pkg from "electron-updater";
 import { logDeviceEvent } from "./deviceLogClient";
+import { synthesizeSpeechBase64, type PiperVoice } from "./piperTts";
 const { autoUpdater } = pkg;
 
 log.initialize();
@@ -84,6 +85,14 @@ function registerCacheHandlers() {
     await fs.writeFile(tmpPath, data, "utf-8");
     await fs.rename(tmpPath, filePath);
   });
+}
+
+function registerTtsHandlers() {
+  ipcMain.handle(
+    "tts:synthesize",
+    (_event, text: string, voice: PiperVoice, lengthScale: number): Promise<string> =>
+      synthesizeSpeechBase64(text, voice, lengthScale),
+  );
 }
 
 function startControlServer(win: BrowserWindow) {
@@ -184,6 +193,7 @@ app.whenReady().then(() => {
   if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: true });
   registerConfigHandlers();
   registerCacheHandlers();
+  registerTtsHandlers();
   const win = createWindow();
   if (process.env.VITE_CONTROL_ENABLED === "true") startControlServer(win);
   setupAutoUpdater();

@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Avatar, Box, Typography } from '@mui/material'
 import { getApi } from '../../api/api'
 import type { ChatProps } from '../../types/modules'
-import { speak, stop, getVoices } from '../../utils/tts'
+import { speak, stop, isSpeaking, type TtsVoice } from '../../utils/tts'
 import { useMediaBlobUrl } from '../../utils/useMediaBlobUrl'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -21,9 +21,6 @@ const FONT_SIZE = {
   medium: { header: '3rem', body: '2.5rem', bubbleMaxH: 'calc(100vh - 220px)' },
   large: { header: '4rem', body: '3.2rem', bubbleMaxH: 'calc(100vh - 260px)' },
 }
-
-const FEMALE_HINTS = /katja|anna|helena|petra|female|weiblich/i
-const MALE_HINTS = /stefan|markus|conrad|hans|yannick|male|männlich/i
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -136,30 +133,6 @@ function useMessages(moduleId: string, recentMessageCount: number) {
   return { messages, loading, error }
 }
 
-function useVoice(pref: 'male' | 'female' | undefined): SpeechSynthesisVoice | undefined {
-  const [voice, setVoice] = useState<SpeechSynthesisVoice | undefined>()
-  useEffect(() => {
-    if (!pref) return
-    const pick = () => {
-      const german = getVoices().filter((v) => v.lang.startsWith('de'))
-      if (!german.length) return
-      const hints = pref === 'female' ? FEMALE_HINTS : MALE_HINTS
-      const opposite = pref === 'female' ? MALE_HINTS : FEMALE_HINTS
-      setVoice(
-        german.find((v) => hints.test(v.name)) ??
-          german.find((v) => !opposite.test(v.name)) ??
-          german[0],
-      )
-    }
-    pick()
-    window.speechSynthesis.addEventListener('voiceschanged', pick)
-    return () => {
-      window.speechSynthesis.removeEventListener('voiceschanged', pick)
-    }
-  }, [pref])
-  return voice
-}
-
 function useShutdownRequest(
   onShutdownRequest: ChatProps['onShutdownRequest'],
   onModuleDone: ChatProps['onModuleDone'],
@@ -173,7 +146,7 @@ function useShutdownRequest(
 
   useEffect(() => {
     onShutdownRequest?.(() => {
-      const ttsSpeaking = window.speechSynthesis.speaking
+      const ttsSpeaking = isSpeaking()
       const audioPlaying = audioRef.current != null && !audioRef.current.paused
       if (ttsSpeaking || audioPlaying) {
         interruptDoneRef.current = () => onModuleDoneRef.current?.()
@@ -191,19 +164,17 @@ function speakMessage(
   onEnd: () => void,
   bubbleRef: React.RefObject<HTMLDivElement | null>,
   rate: number,
-  voice?: SpeechSynthesisVoice,
+  voice?: TtsVoice,
 ) {
   const prefix = `Nachricht von ${msg.username || 'Unbekannt'}. `
   speak(prefix + msg.content, {
     rate,
     voice,
     onEnd,
-    onBoundary: (event) => {
+    onProgress: (fraction) => {
       const el = bubbleRef.current
       if (!el || el.scrollHeight <= el.clientHeight) return
-      const contentIndex = event.charIndex - prefix.length
-      if (contentIndex < 0) return
-      el.scrollTop = (contentIndex / msg.content.length) * (el.scrollHeight - el.clientHeight)
+      el.scrollTop = fraction * (el.scrollHeight - el.clientHeight)
     },
   })
 }
@@ -214,7 +185,7 @@ function useMessagePlayback(params: {
   loading: boolean
   audio: boolean
   rate: number
-  ttsVoice?: SpeechSynthesisVoice
+  ttsVoice?: TtsVoice
   bubbleRef: React.RefObject<HTMLDivElement | null>
   audioRef: React.RefObject<HTMLAudioElement | null>
   onShutdownRequest: ChatProps['onShutdownRequest']
@@ -768,7 +739,7 @@ function Chat({
   const { messages, loading, error } = useMessages(module_id, recentMessageCount)
   const bubbleRef = useRef<HTMLDivElement>(null)
   const audioRef = useRef<HTMLAudioElement>(null)
-  const ttsVoice = useVoice(audio ? voice : undefined)
+  const ttsVoice = audio ? voice : undefined
   const rate = READING_RATE[readingSpeed] ?? 1.0
   const colors = CHAT_COLORS[theme]
 

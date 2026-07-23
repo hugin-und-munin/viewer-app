@@ -13,7 +13,7 @@ type State = 'IDLE' | 'SHOWING' | 'SHUTTING_DOWN'
 // A module that never calls onModuleDone after a shutdown request (e.g. a TTS
 // "onEnd" that never fires) would otherwise wedge the scheduler in
 // SHUTTING_DOWN forever — nothing else would ever show again.
-const SHUTDOWN_TIMEOUT_MS = 0.25 * 60 * 1000
+const SHUTDOWN_TIMEOUT_MS = 2 * 60 * 1000
 
 type Deps = {
   showModule: (props: ModuleProps) => void

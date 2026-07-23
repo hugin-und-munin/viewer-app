@@ -1,7 +1,7 @@
 import { type RefObject, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Box, Typography } from '@mui/material'
 import type { RoutineProps } from '../../types/modules'
-import { speak, stop, getVoices } from '../../utils/tts'
+import { speak, stop, isSpeaking, type TtsVoice } from '../../utils/tts'
 import { getApi } from '../../api/api'
 import { DAY_COLORS, DAY_OUTLINE_COLORS, DAY_OUTLINE_WIDTH, DAY_NAMES } from '../../utils/dayColors'
 import { useMediaBlobUrl } from '../../utils/useMediaBlobUrl'
@@ -15,8 +15,6 @@ const READING_RATE: Record<string, number> = {
   normal: 1.0,
   fast: 1.4,
 }
-const FEMALE_HINTS = /katja|anna|helena|petra|female|weiblich/i
-const MALE_HINTS = /stefan|markus|conrad|hans|yannick|male|männlich/i
 
 const MORNING_START = 8
 const MORNING_END = 12
@@ -252,30 +250,6 @@ function useAppointments(moduleId: string) {
   return { appointments, loading, error }
 }
 
-function useVoice(pref: 'male' | 'female' | undefined): SpeechSynthesisVoice | undefined {
-  const [voice, setVoice] = useState<SpeechSynthesisVoice | undefined>()
-  useEffect(() => {
-    if (!pref) return
-    const pick = () => {
-      const german = getVoices().filter((v) => v.lang.startsWith('de'))
-      if (!german.length) return
-      const hints = pref === 'female' ? FEMALE_HINTS : MALE_HINTS
-      const opposite = pref === 'female' ? MALE_HINTS : FEMALE_HINTS
-      setVoice(
-        german.find((v) => hints.test(v.name)) ??
-          german.find((v) => !opposite.test(v.name)) ??
-          german[0],
-      )
-    }
-    pick()
-    window.speechSynthesis.addEventListener('voiceschanged', pick)
-    return () => {
-      window.speechSynthesis.removeEventListener('voiceschanged', pick)
-    }
-  }, [pref])
-  return voice
-}
-
 function useRowSize(loading: boolean) {
   const ref = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState<{ width: number; height: number } | null>(null)
@@ -307,7 +281,7 @@ function useTTS(
   audio: boolean,
   rate: number,
   hasAppointments: boolean,
-  voice?: SpeechSynthesisVoice,
+  voice?: TtsVoice,
 ) {
   const interruptDoneRef = useRef<(() => void) | null>(null)
 
@@ -332,7 +306,7 @@ function useTTS(
 
   useEffect(() => {
     onShutdownRequest?.(() => {
-      if (window.speechSynthesis.speaking) {
+      if (isSpeaking()) {
         interruptDoneRef.current = () => paramsRef.current.onModuleDone?.()
       } else {
         paramsRef.current.onModuleDone?.()
@@ -514,7 +488,7 @@ function Routine({
 
   const { appointments, loading, error } = useAppointments(module_id)
   const { ref: rowRef, size: rowSize } = useRowSize(loading)
-  const ttsVoice = useVoice(audio ? voice : undefined)
+  const ttsVoice = audio ? voice : undefined
   const rate = READING_RATE[readingSpeed] ?? 1.0
 
   const visible = filterBySlot(appointments, now)

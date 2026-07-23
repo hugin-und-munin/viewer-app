@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Box, Typography } from '@mui/material'
-import { speak, stop } from '../../utils/tts'
+import { speak, stop, isSpeaking } from '../../utils/tts'
 import { DAY_OUTLINE_COLORS, DAY_OUTLINE_WIDTH } from '../../utils/dayColors'
 import type { TimeProps } from '../../types/modules'
 
@@ -48,7 +48,7 @@ function dateText(date: Date): string {
 
 function speakClock(date: Date, showDate: boolean, onEnd?: () => void): void {
   const text = showDate ? `${dateText(date)} ${timeText(date)}` : timeText(date)
-  speak(text, { onEnd })
+  speak(text, { voice: 'female', onEnd })
 }
 
 function formatDate(date: Date): string {
@@ -235,7 +235,7 @@ function Time({
 
   useEffect(() => {
     onShutdownRequest?.(() => {
-      if (window.speechSynthesis.speaking) {
+      if (isSpeaking()) {
         interruptDoneRef.current = () => onModuleDoneRef.current?.()
       } else {
         onModuleDoneRef.current?.()
