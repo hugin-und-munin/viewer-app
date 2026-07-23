@@ -3,6 +3,8 @@ import { Box, Typography } from '@mui/material'
 import type { RoutineProps } from '../../types/modules'
 import { speak, stop, getVoices } from '../../utils/tts'
 import { getApi } from '../../api/api'
+import { DAY_COLORS, DAY_OUTLINE_COLORS, DAY_OUTLINE_WIDTH, DAY_NAMES } from '../../utils/dayColors'
+import { useMediaBlobUrl } from '../../utils/useMediaBlobUrl'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -24,28 +26,6 @@ const CARD_GAP = 16
 const PAST_ALPHA = 0.3
 const FUTURE_ALPHA = 0.6
 const PAST_TEXT = '#424242'
-
-const DAY_COLORS: Record<number, string> = {
-  1: '#2196F3', // Montag     – Blau
-  2: '#F44336', // Dienstag   – Rot
-  3: '#F5C518', // Mittwoch   – Gelb
-  4: '#FF9800', // Donnerstag – Orange
-  5: '#4CAF50', // Freitag    – Grün
-  6: '#9C27B0', // Samstag    – Lila
-  0: '#BDBDBD', // Sonntag    – Grau
-}
-
-const DAY_OUTLINE_COLORS: Record<number, string> = {
-  1: '#2196F3', // Montag     – Blau   (3.12:1)
-  2: '#E53935', // Dienstag   – Rot    (4.23:1)
-  3: '#bd8d00', // Mittwoch   – Gelb   (3.01:1)
-  4: '#e17a00', // Donnerstag – Orange (3.01:1)
-  5: '#44a748', // Freitag    – Grün   (3.06:1)
-  6: '#9C27B0', // Samstag    – Lila   (6.30:1)
-  0: '#757575', // Sonntag    – Grau   (4.61:1)
-}
-
-const DAY_NAMES = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag']
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -448,6 +428,7 @@ function AppointmentCard({
 
   const maxFontSize = Math.round(size * 0.3)
   const { ref: textRef, fontSize } = useFitFontSize(appointment.title, maxFontSize)
+  const { url: iconUrl } = useMediaBlobUrl(appointment.icon)
 
   return (
     <Box
@@ -474,17 +455,18 @@ function AppointmentCard({
         overflow: 'hidden',
       }}
     >
-      {appointment.icon ? (
+      {iconUrl ? (
         <Box
+          component="img"
+          src={iconUrl}
+          alt=""
           aria-hidden="true"
           sx={{
-            fontSize: `${Math.round(size * 0.45)}px`,
-            lineHeight: 1.2,
-            userSelect: 'none',
+            width: `${Math.round(size * 0.6)}px`,
+            height: `${Math.round(size * 0.6)}px`,
+            objectFit: 'contain',
           }}
-        >
-          {appointment.icon}
-        </Box>
+        />
       ) : (
         <Typography
           ref={textRef as RefObject<HTMLElement>}
@@ -584,8 +566,8 @@ function Routine({
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
-        outline: `6px solid ${DAY_OUTLINE_COLORS[now.getDay()]}`,
-        outlineOffset: '-6px',
+        outline: `${DAY_OUTLINE_WIDTH} solid ${DAY_OUTLINE_COLORS[now.getDay()]}`,
+        outlineOffset: `-${DAY_OUTLINE_WIDTH}`,
         boxSizing: 'border-box',
       }}
     >

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Box, Typography } from '@mui/material'
 import { speak, stop } from '../../utils/tts'
+import { DAY_OUTLINE_COLORS, DAY_OUTLINE_WIDTH } from '../../utils/dayColors'
 import type { TimeProps } from '../../types/modules'
 
 const FONT = "'Atkinson Hyperlegible', sans-serif"
@@ -26,19 +27,27 @@ function hourWord(n: number): string {
   return HOUR_WORDS[n] ?? String(n)
 }
 
-function speakTime(date: Date, onEnd?: () => void): void {
+function timeText(date: Date): string {
   const h = date.getHours()
   const m = date.getMinutes()
   const h12 = h % 12 === 0 ? 12 : h % 12
   const nextH12 = (h + 1) % 12 === 0 ? 12 : (h + 1) % 12
 
-  let text: string
-  if (m === 0) text = `Es ist ${h} Uhr.`
-  else if (m === 15) text = `Es ist Viertel nach ${hourWord(h12)}.`
-  else if (m === 30) text = `Es ist halb ${hourWord(nextH12)}.`
-  else if (m === 45) text = `Es ist Viertel vor ${hourWord(nextH12)}.`
-  else text = `Es ist ${h} Uhr ${m}.`
+  if (m === 0) return `Es ist ${h} Uhr.`
+  if (m === 15) return `Es ist Viertel nach ${hourWord(h12)}.`
+  if (m === 30) return `Es ist halb ${hourWord(nextH12)}.`
+  if (m === 45) return `Es ist Viertel vor ${hourWord(nextH12)}.`
+  return `Es ist ${h} Uhr ${m}.`
+}
 
+function dateText(date: Date): string {
+  const weekday = date.toLocaleDateString('de-DE', { weekday: 'long' })
+  const month = date.toLocaleDateString('de-DE', { month: 'long' })
+  return `Heute ist ${weekday}, der ${date.getDate()}. ${month}.`
+}
+
+function speakClock(date: Date, showDate: boolean, onEnd?: () => void): void {
+  const text = showDate ? `${dateText(date)} ${timeText(date)}` : timeText(date)
   speak(text, { onEnd })
 }
 
@@ -235,14 +244,14 @@ function Time({
   }, [onShutdownRequest])
 
   useEffect(() => {
-    speakTime(new Date(), () => {
+    speakClock(new Date(), showDate, () => {
       if (interruptDoneRef.current) {
         interruptDoneRef.current()
         interruptDoneRef.current = null
       }
     })
     return () => stop()
-  }, [])
+  }, [showDate])
 
   return (
     <Box
@@ -252,6 +261,9 @@ function Time({
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
+        outline: `${DAY_OUTLINE_WIDTH} solid ${DAY_OUTLINE_COLORS[now.getDay()]}`,
+        outlineOffset: `-${DAY_OUTLINE_WIDTH}`,
+        boxSizing: 'border-box',
       }}
     >
       {clockType === 'analog' ? (

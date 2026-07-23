@@ -4,6 +4,7 @@ import { Avatar, Box, Typography } from '@mui/material'
 import { getApi } from '../../api/api'
 import type { ChatProps } from '../../types/modules'
 import { speak, stop, getVoices } from '../../utils/tts'
+import { useMediaBlobUrl } from '../../utils/useMediaBlobUrl'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -157,48 +158,6 @@ function useVoice(pref: 'male' | 'female' | undefined): SpeechSynthesisVoice | u
     }
   }, [pref])
   return voice
-}
-
-function useMediaBlobUrl(mediaId: string | undefined): {
-  url: string | null
-  settled: boolean
-} {
-  const [state, setState] = useState<{
-    url: string | null
-    settledFor: string | undefined
-  }>({
-    url: null,
-    settledFor: undefined,
-  })
-  const urlRef = useRef<string | null>(null)
-
-  useEffect(() => {
-    if (!mediaId) return
-    let cancelled = false
-    getApi()
-      .getBlob(`/media/${mediaId}`)
-      .then((url) => {
-        if (cancelled) return
-        if (url) {
-          if (urlRef.current) URL.revokeObjectURL(urlRef.current)
-          urlRef.current = url
-        }
-        setState({ url: url ?? null, settledFor: mediaId })
-      })
-      .catch(() => {
-        if (!cancelled) setState({ url: null, settledFor: mediaId })
-      })
-    return () => {
-      cancelled = true
-      if (urlRef.current) {
-        URL.revokeObjectURL(urlRef.current)
-        urlRef.current = null
-      }
-      setState({ url: null, settledFor: undefined })
-    }
-  }, [mediaId])
-
-  return { url: state.url, settled: state.settledFor === mediaId }
 }
 
 function useShutdownRequest(

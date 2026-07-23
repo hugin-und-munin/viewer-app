@@ -40,6 +40,7 @@ async function prefetchModule(moduleId: string): Promise<void> {
 
   for (const entry of entries) {
     if (typeof entry.data.media_id === 'string') mediaIds.add(entry.data.media_id)
+    if (typeof entry.data.icon === 'string') mediaIds.add(entry.data.icon) // Routine appointment picture
     if (typeof entry.data.user_id === 'string') userIds.add(entry.data.user_id)
   }
 
