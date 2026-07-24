@@ -97,6 +97,10 @@
         <button onclick="testTimeSeconds()">Mit Sekunden</button>
         <button onclick="testTimeNoDate()">Kein Datum</button>
       </div>
+      <div class="row">
+        <button onclick="testTimeFemale()">Female</button>
+        <button onclick="testTimeMale()">Male</button>
+      </div>
     </div>
 
     <div class="section">
@@ -205,6 +209,16 @@
     function testTimeNoDate() {
       send({ command: "loadModule", type: "Time", module_id: TIME_ID,
         duration: 300000, format: "HH:mm", showSeconds: false, showDate: false, interval: 30 });
+    }
+
+    function testTimeFemale() {
+      send({ command: "loadModule", type: "Time", module_id: TIME_ID,
+        duration: 300000, format: "HH:mm", showSeconds: false, showDate: true, interval: 30, voice: "female" });
+    }
+
+    function testTimeMale() {
+      send({ command: "loadModule", type: "Time", module_id: TIME_ID,
+        duration: 300000, format: "HH:mm", showSeconds: false, showDate: true, interval: 30, voice: "male" });
     }
 
     // ── Routine ───────────────────────────────────────────────────────────

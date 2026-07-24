@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Box, Typography } from '@mui/material'
-import { speak, stop, isSpeaking } from '../../utils/tts'
+import { speak, stop, isSpeaking, type TtsVoice } from '../../utils/tts'
 import { DAY_OUTLINE_COLORS, DAY_OUTLINE_WIDTH } from '../../utils/dayColors'
 import type { TimeProps } from '../../types/modules'
 
@@ -46,9 +46,9 @@ function dateText(date: Date): string {
   return `Heute ist ${weekday}, der ${date.getDate()}. ${month}.`
 }
 
-function speakClock(date: Date, showDate: boolean, onEnd?: () => void): void {
+function speakClock(date: Date, showDate: boolean, voice: TtsVoice, onEnd?: () => void): void {
   const text = showDate ? `${dateText(date)} ${timeText(date)}` : timeText(date)
-  speak(text, { voice: 'female', onEnd })
+  speak(text, { voice, onEnd })
 }
 
 function formatDate(date: Date): string {
@@ -220,6 +220,7 @@ function Time({
   format = 'HH:mm',
   showSeconds = false,
   showDate = true,
+  voice = 'female',
 }: TimeProps) {
   const [now, setNow] = useState(new Date())
   const interruptDoneRef = useRef<(() => void) | null>(null)
@@ -244,14 +245,14 @@ function Time({
   }, [onShutdownRequest])
 
   useEffect(() => {
-    speakClock(new Date(), showDate, () => {
+    speakClock(new Date(), showDate, voice, () => {
       if (interruptDoneRef.current) {
         interruptDoneRef.current()
         interruptDoneRef.current = null
       }
     })
     return () => stop()
-  }, [showDate])
+  }, [showDate, voice])
 
   return (
     <Box

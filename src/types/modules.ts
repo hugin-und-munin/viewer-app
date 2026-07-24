@@ -31,6 +31,7 @@ export interface TimeProps extends BaseModule {
   format?: string
   showSeconds?: boolean
   showDate?: boolean
+  voice?: 'male' | 'female'
 }
 
 export type ModuleProps = ChatProps | RoutineProps | TimeProps
