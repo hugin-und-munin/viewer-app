@@ -22,6 +22,7 @@ export interface RoutineProps extends BaseModule {
   audio: boolean
   voice?: 'male' | 'female'
   readingSpeed?: 'slow' | 'normal' | 'fast'
+  mode?: 'overview' | 'simple'
 }
 
 export interface TimeProps extends BaseModule {

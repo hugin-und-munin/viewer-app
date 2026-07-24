@@ -109,6 +109,9 @@
         <button onclick="testRoutineStill()">Ohne Ton</button>
         <button onclick="testRoutineTon()">Mit Ton</button>
       </div>
+      <div class="row">
+        <button onclick="testRoutineSimple()">Einfach</button>
+      </div>
     </div>
 
     <div class="section wide">
@@ -231,6 +234,11 @@
     function testRoutineTon() {
       send({ command: "loadModule", type: "Routine", module_id: ROUTINE_ID,
         duration: 600000, audio: true, voice: "male" });
+    }
+
+    function testRoutineSimple() {
+      send({ command: "loadModule", type: "Routine", module_id: ROUTINE_ID,
+        duration: 600000, audio: true, voice: "female", mode: "simple" });
     }
 
     // ── Custom ────────────────────────────────────────────────────────────

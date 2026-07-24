@@ -174,8 +174,22 @@ function filterBySlot(appointments: Appointment[], now: Date): Appointment[] {
   })
 }
 
+// Unlike filterBySlot, not bounded to the current morning/afternoon/evening
+// window — the simple mode's "next appointment" must still be found even
+// right after a slot boundary (e.g. 11:55 looking for a 12:05 appointment).
+function filterToday(appointments: Appointment[], now: Date): Appointment[] {
+  const todayStr = now.toISOString().slice(0, 10)
+  return appointments.filter((a) => new Date(a.start_at).toISOString().slice(0, 10) === todayStr)
+}
+
 function findActiveIndex(appointments: Appointment[], now: Date): number {
   return appointments.findIndex((a) => now >= new Date(a.start_at) && now < new Date(a.end_at))
+}
+
+function findNextIndex(appointments: Appointment[], activeIndex: number, now: Date): number {
+  return activeIndex >= 0
+    ? activeIndex + 1
+    : appointments.findIndex((a) => new Date(a.start_at) > now)
 }
 
 const DIGIT_WORDS: Record<string, string> = {
@@ -210,6 +224,32 @@ function buildTTSText(
     : 'Momentan ist kein Termin aktiv.'
   const nextPart = next
     ? `Als nächstes folgt: ${breakOrdinal(next.title)}. ${breakOrdinal(next.description)}`
+    : ''
+
+  return [intro, activePart, nextPart].filter(Boolean).join(' ')
+}
+
+function roundToNearest5Minutes(date: Date): Date {
+  const ms = 5 * 60 * 1000
+  return new Date(Math.round(date.getTime() / ms) * ms)
+}
+
+// Simple mode: short, easy-to-follow announcement — no time ranges, no
+// mention of "nothing active right now" (goes straight to what's next).
+function buildSimpleTTSText(active: Appointment | undefined, next: Appointment | undefined, dayName: string): string {
+  const now = new Date()
+  const roundedTime = formatTime(roundToNearest5Minutes(now).toISOString())
+  const intro = `Hier ist deine Tagesroutine. Es ist ${dayName}, ${roundedTime}.`
+
+  if (!active && !next) {
+    return `${intro} Für heute sind keine weiteren Termine geplant.`
+  }
+
+  const activePart = active
+    ? `Du befindest dich gerade bei: ${breakOrdinal(active.title)}. ${breakOrdinal(active.description)}`
+    : ''
+  const nextPart = next
+    ? `Um ${formatTime(next.start_at)} folgt: ${breakOrdinal(next.title)}. ${breakOrdinal(next.description)}`
     : ''
 
   return [intro, activePart, nextPart].filter(Boolean).join(' ')
@@ -281,6 +321,7 @@ function useTTS(
   audio: boolean,
   rate: number,
   hasAppointments: boolean,
+  mode: 'overview' | 'simple',
   voice?: TtsVoice,
 ) {
   const interruptDoneRef = useRef<(() => void) | null>(null)
@@ -291,6 +332,7 @@ function useTTS(
     rate,
     voice,
     hasAppointments,
+    mode,
     onModuleDone,
   })
   useEffect(() => {
@@ -300,9 +342,10 @@ function useTTS(
       rate,
       voice,
       hasAppointments,
+      mode,
       onModuleDone,
     }
-  }, [active, next, rate, voice, hasAppointments, onModuleDone])
+  }, [active, next, rate, voice, hasAppointments, mode, onModuleDone])
 
   useEffect(() => {
     onShutdownRequest?.(() => {
@@ -322,9 +365,11 @@ function useTTS(
       rate: r,
       voice: v,
       hasAppointments: has,
+      mode: m,
       onModuleDone: done,
     } = paramsRef.current
-    speak(buildTTSText(a, n, dayName, periodLabel), {
+    const text = m === 'simple' ? buildSimpleTTSText(a, n, dayName) : buildTTSText(a, n, dayName, periodLabel)
+    speak(text, {
       rate: r,
       voice: v,
       onEnd: () => {
@@ -359,22 +404,30 @@ function StatusScreen({ text, role = 'status' }: { text: string; role?: 'status'
   )
 }
 
-function useFitFontSize(text: string, maxPx: number, minPx = 12) {
+// Finds the largest font size that fits the card without overflowing in
+// either dimension — starts near the full box size and shrinks only as much
+// as this specific text at this specific (screen-dependent) box size
+// actually needs, rather than capping at a fixed fraction of the box. That
+// fixed-fraction approach left big cards under-filled and could still clip
+// small ones, since it never adapted to what actually fit.
+function useFitFontSize(text: string, boxSize: number, minPx = 8) {
   const ref = useRef<HTMLElement>(null)
-  const [fontSize, setFontSize] = useState(maxPx)
+  const [fontSize, setFontSize] = useState(boxSize)
 
   useLayoutEffect(() => {
     const el = ref.current
     if (!el || !el.parentElement) return
-    const limit = el.parentElement.clientHeight
-    let size = maxPx
+    const parent = el.parentElement
+    const heightLimit = parent.clientHeight
+    const widthLimit = parent.clientWidth
+    let size = Math.round(boxSize * 0.9)
     el.style.fontSize = `${size}px`
-    while (size > minPx && el.scrollHeight > limit) {
-      size -= 2
+    while (size > minPx && (el.scrollHeight > heightLimit || el.scrollWidth > widthLimit)) {
+      size -= 1
       el.style.fontSize = `${size}px`
     }
     setFontSize(size)
-  }, [text, maxPx, minPx])
+  }, [text, boxSize, minPx])
 
   return { ref, fontSize }
 }
@@ -400,8 +453,7 @@ function AppointmentCard({
       ? resolveAccessiblePastBgColor(dayColor)
       : hexToRgba(dayColor, FUTURE_ALPHA)
 
-  const maxFontSize = Math.round(size * 0.3)
-  const { ref: textRef, fontSize } = useFitFontSize(appointment.title, maxFontSize)
+  const { ref: textRef, fontSize } = useFitFontSize(appointment.title, size)
   const { url: iconUrl } = useMediaBlobUrl(appointment.icon)
 
   return (
@@ -421,11 +473,17 @@ function AppointmentCard({
         transform: isActive ? 'scale(1.1)' : 'none',
         mx: isActive ? `${size * 0.08}px` : 0,
         boxShadow: isActive ? '0 4px 20px rgba(0,0,0,0.3)' : 'none',
-        transition: animated ? 'all 0.3s ease' : 'none',
+        // Deliberately excludes width/height: animating those races the
+        // text-fit measurement below, which reads clientHeight/clientWidth
+        // synchronously right after a size change — mid-transition, that
+        // read would land on an intermediate (not yet final) box size.
+        transition: animated
+          ? 'background-color 0.3s ease, border-radius 0.3s ease, transform 0.3s ease, margin 0.3s ease, box-shadow 0.3s ease'
+          : 'none',
         '@media (prefers-reduced-motion: reduce)': {
           transition: 'none !important',
         },
-        px: isActive ? 0 : 1,
+        px: iconUrl ? 0 : isActive ? 0 : 1,
         overflow: 'hidden',
       }}
     >
@@ -436,9 +494,12 @@ function AppointmentCard({
           alt=""
           aria-hidden="true"
           sx={{
-            width: `${Math.round(size * 0.6)}px`,
-            height: `${Math.round(size * 0.6)}px`,
+            width: `${Math.round(size * 0.92)}px`,
+            height: `${Math.round(size * 0.92)}px`,
             objectFit: 'contain',
+            // Match the card's own shape so a non-square image's corners
+            // don't stick out past the circular (isActive) mask.
+            borderRadius: isActive ? '50%' : `${size * 0.1}px`,
           }}
         />
       ) : (
@@ -466,6 +527,94 @@ function AppointmentCard({
   )
 }
 
+const SIMPLE_GAP = 48
+
+// Featured (currently-active, or the upcoming one if nothing's active) and
+// the "next" card sit side by side, sized to fill the available area — same
+// shape/color/icon-or-title treatment as AppointmentCard, just larger.
+// Whether something is active or merely upcoming is conveyed by that card
+// styling alone (no separate time caption needed on screen; exact timing is
+// still spoken in the TTS text).
+function computeSimpleCardSizes(
+  containerSize: { width: number; height: number } | null,
+  showNextCard: boolean,
+): { featuredSize: number; nextSize: number } {
+  if (!containerSize) return { featuredSize: 340, nextSize: 160 }
+  const maxHeight = Math.floor(containerSize.height * 0.85)
+  if (!showNextCard) {
+    return { featuredSize: Math.min(Math.floor(containerSize.width * 0.55), maxHeight), nextSize: 0 }
+  }
+  const unit = Math.floor((containerSize.width - SIMPLE_GAP) / 3)
+  return {
+    featuredSize: Math.min(unit * 2, maxHeight),
+    nextSize: Math.min(unit, Math.floor(maxHeight * 0.6)),
+  }
+}
+
+function SimpleView({
+  active,
+  next,
+  dayColor,
+}: {
+  active: Appointment | undefined
+  next: Appointment | undefined
+  dayColor: string
+}) {
+  const featured = active ?? next
+  const isActive = !!active
+  const showNextCard = isActive && !!next
+  const { ref, size: containerSize } = useRowSize(false)
+
+  if (!featured) {
+    return (
+      <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Typography
+          role="status"
+          sx={{ fontFamily: FONT, fontSize: '2rem', color: 'grey.700', textAlign: 'center', px: 6 }}
+        >
+          Für heute sind keine weiteren Termine geplant.
+        </Typography>
+      </Box>
+    )
+  }
+
+  const { featuredSize, nextSize } = computeSimpleCardSizes(containerSize, showNextCard)
+
+  return (
+    <Box
+      ref={ref}
+      sx={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: `${SIMPLE_GAP}px`,
+        px: 6,
+      }}
+    >
+      <AppointmentCard
+        appointment={featured}
+        isActive={isActive}
+        isPast={false}
+        dayColor={dayColor}
+        size={featuredSize}
+        animated={true}
+      />
+      {showNextCard && next && (
+        <AppointmentCard
+          appointment={next}
+          isActive={false}
+          isPast={false}
+          dayColor={dayColor}
+          size={nextSize}
+          animated={true}
+        />
+      )}
+    </Box>
+  )
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 function Routine({
@@ -475,6 +624,7 @@ function Routine({
   audio = true,
   voice = 'female',
   readingSpeed = 'normal',
+  mode = 'overview',
 }: RoutineProps) {
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
@@ -494,9 +644,21 @@ function Routine({
   const visible = filterBySlot(appointments, now)
   const activeIndex = findActiveIndex(visible, now)
   const activeAppointment = visible[activeIndex]
-  const nextIndex =
-    activeIndex >= 0 ? activeIndex + 1 : visible.findIndex((a) => new Date(a.start_at) > now)
+  const nextIndex = findNextIndex(visible, activeIndex, now)
   const nextAppointment = visible[nextIndex]
+
+  // Simple mode isn't bounded to the current half-day slot — it looks at all
+  // of today's appointments so "next" is still found right after a slot boundary.
+  const todayAppointments = filterToday(appointments, now)
+  const todayActiveIndex = findActiveIndex(todayAppointments, now)
+  const todayActiveAppointment = todayAppointments[todayActiveIndex]
+  const todayNextIndex = findNextIndex(todayAppointments, todayActiveIndex, now)
+  const todayNextAppointment = todayAppointments[todayNextIndex]
+
+  const isSimple = mode === 'simple'
+  const ttsActive = isSimple ? todayActiveAppointment : activeAppointment
+  const ttsNext = isSimple ? todayNextAppointment : nextAppointment
+  const hasAppointments = isSimple ? !!ttsActive || !!ttsNext : visible.length > 0
 
   const cardSize = rowSize
     ? Math.min(
@@ -506,8 +668,8 @@ function Routine({
     : 150
 
   useTTS(
-    activeAppointment,
-    nextAppointment,
+    ttsActive,
+    ttsNext,
     loading,
     onShutdownRequest,
     onModuleDone,
@@ -515,7 +677,8 @@ function Routine({
     periodLabel,
     audio,
     rate,
-    visible.length > 0,
+    hasAppointments,
+    mode,
     ttsVoice,
   )
 
@@ -557,23 +720,25 @@ function Routine({
           flexShrink: 0,
         }}
       >
-        <Typography
-          component="h1"
-          sx={{
-            position: 'absolute',
-            left: '48px',
-            top: '50%',
-            transform: 'translateY(-50%)',
-            fontFamily: FONT,
-            fontSize: '1.8rem',
-            fontWeight: 400,
-            color: 'black',
-            lineHeight: 1,
-            m: 0,
-          }}
-        >
-          Tagesroutine
-        </Typography>
+        {!isSimple && (
+          <Typography
+            component="h1"
+            sx={{
+              position: 'absolute',
+              left: '48px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              fontFamily: FONT,
+              fontSize: '1.8rem',
+              fontWeight: 400,
+              color: 'black',
+              lineHeight: 1,
+              m: 0,
+            }}
+          >
+            Tagesroutine
+          </Typography>
+        )}
         <Typography
           component="h2"
           sx={{
@@ -587,58 +752,64 @@ function Routine({
         >
           {dayName}
         </Typography>
-        <Typography
-          sx={{
-            position: 'absolute',
-            right: '48px',
-            top: '50%',
-            transform: 'translateY(-50%)',
-            fontFamily: FONT,
-            fontSize: '2rem',
-            fontWeight: 400,
-            color: 'black',
-            lineHeight: 1,
-            m: 0,
-          }}
-        >
-          {periodLabel}
-        </Typography>
-      </Box>
-
-      <Box
-        ref={rowRef}
-        role="list"
-        aria-label="Termine"
-        sx={{
-          flex: 1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          px: 6,
-          gap: `${CARD_GAP}px`,
-          overflowX: 'auto',
-          scrollbarWidth: 'none',
-          '&::-webkit-scrollbar': { display: 'none' },
-        }}
-      >
-        {visible.length === 0 ? (
-          <Typography role="status" sx={{ fontFamily: FONT, fontSize: '2rem', color: 'grey.700' }}>
-            Keine Termine
+        {!isSimple && (
+          <Typography
+            sx={{
+              position: 'absolute',
+              right: '48px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              fontFamily: FONT,
+              fontSize: '2rem',
+              fontWeight: 400,
+              color: 'black',
+              lineHeight: 1,
+              m: 0,
+            }}
+          >
+            {periodLabel}
           </Typography>
-        ) : (
-          visible.map((a) => (
-            <AppointmentCard
-              key={a.id}
-              appointment={a}
-              isActive={a.id === activeAppointment?.id}
-              isPast={a.id !== activeAppointment?.id && new Date(a.end_at) <= now}
-              dayColor={dayColor}
-              size={cardSize}
-              animated={true}
-            />
-          ))
         )}
       </Box>
+
+      {isSimple ? (
+        <SimpleView active={todayActiveAppointment} next={todayNextAppointment} dayColor={dayColor} />
+      ) : (
+        <Box
+          ref={rowRef}
+          role="list"
+          aria-label="Termine"
+          sx={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            px: 6,
+            gap: `${CARD_GAP}px`,
+            overflowX: 'auto',
+            scrollbarWidth: 'none',
+            '&::-webkit-scrollbar': { display: 'none' },
+          }}
+        >
+          {visible.length === 0 ? (
+            <Typography role="status" sx={{ fontFamily: FONT, fontSize: '2rem', color: 'grey.700' }}>
+              Keine Termine
+            </Typography>
+          ) : (
+            visible.map((a) => (
+              <AppointmentCard
+                key={a.id}
+                appointment={a}
+                isActive={a.id === activeAppointment?.id}
+                isPast={a.id !== activeAppointment?.id && new Date(a.end_at) <= now}
+                dayColor={dayColor}
+                size={cardSize}
+                animated={true}
+              />
+            ))
+          )}
+        </Box>
+      )}
     </Box>
   )
 }
