@@ -16,6 +16,7 @@ const FONT = "'Atkinson Hyperlegible', sans-serif"
 
 const READING_RATE: Record<string, number> = { slow: 0.5, normal: 0.7, fast: 1 }
 const SPEECH_PAUSE_MS: Record<string, number> = { short: 1000, medium: 2000, long: 4000 }
+const REPEAT_GAP_MS: Record<string, number> = { short: 3000, medium: 6000, long: 10000 }
 
 const FONT_SIZE = {
   small: { header: '2rem', body: '1.8rem', bubbleMaxH: 'calc(100vh - 200px)' },
@@ -190,6 +191,8 @@ function useMessagePlayback(params: {
   rate: number
   ttsVoice?: TtsVoice
   pauseMs: number
+  repeat: boolean
+  repeatGapMs: number
   bubbleRef: React.RefObject<HTMLDivElement | null>
   audioRef: React.RefObject<HTMLAudioElement | null>
   onShutdownRequest: ChatProps['onShutdownRequest']
@@ -203,6 +206,8 @@ function useMessagePlayback(params: {
     rate,
     ttsVoice,
     pauseMs,
+    repeat,
+    repeatGapMs,
     bubbleRef,
     audioRef,
     onShutdownRequest,
@@ -216,6 +221,8 @@ function useMessagePlayback(params: {
   const rateRef = useRef(rate)
   const ttsVoiceRef = useRef(ttsVoice)
   const pauseMsRef = useRef(pauseMs)
+  const repeatRef = useRef(repeat)
+  const repeatGapMsRef = useRef(repeatGapMs)
   useEffect(() => {
     rateRef.current = rate
   }, [rate])
@@ -225,6 +232,12 @@ function useMessagePlayback(params: {
   useEffect(() => {
     pauseMsRef.current = pauseMs
   }, [pauseMs])
+  useEffect(() => {
+    repeatRef.current = repeat
+  }, [repeat])
+  useEffect(() => {
+    repeatGapMsRef.current = repeatGapMs
+  }, [repeatGapMs])
 
   const currentMediaId = messages[index]?.media_id
   const { url: mediaBlobUrl, settled: mediaBlobSettled } = useMediaBlobUrl(currentMediaId)
@@ -282,7 +295,25 @@ function useMessagePlayback(params: {
 
     if (msg.type === 'text') {
       if (audio) {
-        speakMessage(msg, onEnd, bubbleRef, rateRef.current, ttsVoiceRef.current, pauseMsRef.current)
+        let textRepeated = false
+        const handleSpeakEnd = () => {
+          if (interruptDoneRef.current) {
+            interruptDoneRef.current()
+            interruptDoneRef.current = null
+            return
+          }
+          if (repeatRef.current && !textRepeated) {
+            textRepeated = true
+            timerRef.current = setTimeout(
+              () =>
+                speakMessage(msg, handleSpeakEnd, bubbleRef, rateRef.current, ttsVoiceRef.current, pauseMsRef.current),
+              repeatGapMsRef.current,
+            )
+          } else {
+            advance()
+          }
+        }
+        speakMessage(msg, handleSpeakEnd, bubbleRef, rateRef.current, ttsVoiceRef.current, pauseMsRef.current)
       } else {
         timerRef.current = setTimeout(advance, DISPLAY_MS)
       }
@@ -302,33 +333,49 @@ function useMessagePlayback(params: {
       const el = audioRef.current
       if (!el) return
 
-      const playAudio = () => {
+      let audioRepeated = false
+
+      function playAudio(onDone: () => void) {
         const url = mediaBlobUrlRef.current
         if (!url) {
-          onEnd()
+          onDone()
           return
         }
         el.src = url
         el.currentTime = 0
-        el.onended = onEnd
+        el.onended = onDone
         el.oncanplay = () => {
           el.oncanplay = null
-          el.play().catch(onEnd)
+          el.play().catch(onDone)
         }
         el.load()
       }
 
-      const doPlayback = () => {
+      function handlePlaybackEnd() {
+        if (interruptDoneRef.current) {
+          interruptDoneRef.current()
+          interruptDoneRef.current = null
+          return
+        }
+        if (repeatRef.current && !audioRepeated) {
+          audioRepeated = true
+          timerRef.current = setTimeout(doPlayback, repeatGapMsRef.current)
+        } else {
+          advance()
+        }
+      }
+
+      function doPlayback() {
         if (audio) {
           speak(`Sprachnachricht von ${name}.`, {
             rate: rateRef.current,
             voice: ttsVoiceRef.current,
             onEnd: () => {
-              timerRef.current = setTimeout(playAudio, pauseMsRef.current)
+              timerRef.current = setTimeout(() => playAudio(handlePlaybackEnd), pauseMsRef.current)
             },
           })
         } else {
-          playAudio()
+          playAudio(handlePlaybackEnd)
         }
       }
 
@@ -743,6 +790,7 @@ function Chat({
   fontSize = 'medium',
   readingSpeed = 'normal',
   pause = 'medium',
+  repeat = false,
   theme = 'light',
   recentMessageCount = DEFAULT_RECENT_MESSAGE_COUNT,
   onShutdownRequest,
@@ -754,6 +802,7 @@ function Chat({
   const ttsVoice = audio ? voice : undefined
   const rate = READING_RATE[readingSpeed] ?? 1.0
   const pauseMs = SPEECH_PAUSE_MS[pause] ?? 0
+  const repeatGapMs = REPEAT_GAP_MS[pause] ?? 0
   const colors = CHAT_COLORS[theme]
 
   const { index, mediaBlobUrl } = useMessagePlayback({
@@ -764,6 +813,8 @@ function Chat({
     rate,
     ttsVoice,
     pauseMs,
+    repeat,
+    repeatGapMs,
     bubbleRef,
     audioRef,
     onShutdownRequest,

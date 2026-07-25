@@ -16,6 +16,7 @@ const READING_RATE: Record<string, number> = {
   fast: 1,
 }
 const PAUSE_MS: Record<string, number> = { short: 1000, medium: 2000, long: 4000 }
+const REPEAT_GAP_MS: Record<string, number> = { short: 3000, medium: 6000, long: 10000 }
 
 const MORNING_START = 8
 const MORNING_END = 12
@@ -339,6 +340,8 @@ function useTTS(
   hasAppointments: boolean,
   mode: 'overview' | 'simple',
   pauseMs: number,
+  repeat: boolean,
+  repeatGapMs: number,
   voice?: TtsVoice,
 ) {
   const interruptDoneRef = useRef<(() => void) | null>(null)
@@ -351,6 +354,8 @@ function useTTS(
     hasAppointments,
     mode,
     pauseMs,
+    repeat,
+    repeatGapMs,
     onModuleDone,
   })
   useEffect(() => {
@@ -362,9 +367,11 @@ function useTTS(
       hasAppointments,
       mode,
       pauseMs,
+      repeat,
+      repeatGapMs,
       onModuleDone,
     }
-  }, [active, next, rate, voice, hasAppointments, mode, pauseMs, onModuleDone])
+  }, [active, next, rate, voice, hasAppointments, mode, pauseMs, repeat, repeatGapMs, onModuleDone])
 
   useEffect(() => {
     onShutdownRequest?.(() => {
@@ -386,23 +393,39 @@ function useTTS(
       hasAppointments: has,
       mode: m,
       pauseMs: p,
+      repeat: rep,
+      repeatGapMs: rg,
       onModuleDone: done,
     } = paramsRef.current
     const text = m === 'simple' ? buildSimpleTTSText(a, n, dayName) : buildTTSText(a, n, dayName, periodLabel)
-    speak(text, {
-      rate: r,
-      voice: v,
-      pauseMs: p,
-      onEnd: () => {
-        if (interruptDoneRef.current) {
-          interruptDoneRef.current()
-          interruptDoneRef.current = null
-        } else if (!has) {
-          done?.()
-        }
-      },
-    })
-    return () => stop()
+
+    let repeated = false
+    let repeatTimer: ReturnType<typeof setTimeout> | null = null
+
+    function playOnce() {
+      speak(text, { rate: r, voice: v, pauseMs: p, onEnd: handleEnd })
+    }
+
+    function handleEnd() {
+      if (interruptDoneRef.current) {
+        interruptDoneRef.current()
+        interruptDoneRef.current = null
+        return
+      }
+      if (rep && !repeated) {
+        repeated = true
+        repeatTimer = setTimeout(playOnce, rg)
+      } else if (!has) {
+        done?.()
+      }
+    }
+
+    playOnce()
+
+    return () => {
+      if (repeatTimer) clearTimeout(repeatTimer)
+      stop()
+    }
   }, [active?.id, next?.id, dayName, periodLabel, audio, loading])
 }
 
@@ -646,6 +669,7 @@ function Routine({
   voice = 'female',
   readingSpeed = 'normal',
   pause = 'medium',
+  repeat = false,
   mode = 'overview',
 }: RoutineProps) {
   const [now, setNow] = useState(() => new Date())
@@ -663,6 +687,7 @@ function Routine({
   const ttsVoice = audio ? voice : undefined
   const rate = READING_RATE[readingSpeed] ?? 1.0
   const pauseMs = PAUSE_MS[pause] ?? 0
+  const repeatGapMs = REPEAT_GAP_MS[pause] ?? 0
 
   const visible = filterBySlot(appointments, now)
   const activeIndex = findActiveIndex(visible, now)
@@ -703,6 +728,8 @@ function Routine({
     hasAppointments,
     mode,
     pauseMs,
+    repeat,
+    repeatGapMs,
     ttsVoice,
   )
 

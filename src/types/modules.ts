@@ -14,6 +14,7 @@ export interface ChatProps extends BaseModule {
   fontSize?: 'small' | 'medium' | 'large'
   readingSpeed?: 'slow' | 'normal' | 'fast'
   pause?: 'short' | 'medium' | 'long'
+  repeat?: boolean
   theme?: 'light' | 'dark'
   recentMessageCount?: number
 }
@@ -24,6 +25,7 @@ export interface RoutineProps extends BaseModule {
   voice?: 'male' | 'female'
   readingSpeed?: 'slow' | 'normal' | 'fast'
   pause?: 'short' | 'medium' | 'long'
+  repeat?: boolean
   mode?: 'overview' | 'simple'
 }
 
@@ -37,6 +39,7 @@ export interface TimeProps extends BaseModule {
   audio?: boolean
   voice?: 'male' | 'female'
   readingSpeed?: 'slow' | 'normal' | 'fast'
+  repeat?: boolean
 }
 
 export type ModuleProps = ChatProps | RoutineProps | TimeProps

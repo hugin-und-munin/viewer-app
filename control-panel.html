@@ -89,6 +89,7 @@
       </div>
       <div class="row">
         <button onclick="testChatPauseLong()">Pause Lang</button>
+        <button onclick="testChatRepeat()">Wiederholung</button>
       </div>
     </div>
 
@@ -106,6 +107,7 @@
       </div>
       <div class="row">
         <button onclick="testTimeMuted()">Ohne Ton</button>
+        <button onclick="testTimeRepeat()">Wiederholung</button>
       </div>
     </div>
 
@@ -120,6 +122,7 @@
       </div>
       <div class="row">
         <button onclick="testRoutinePauseLong()">Pause Lang</button>
+        <button onclick="testRoutineRepeat()">Wiederholung</button>
       </div>
     </div>
 
@@ -206,6 +209,11 @@
         duration: 300000, audio: true, voice: "female", theme: "light", fontSize: "large", pause: "long" });
     }
 
+    function testChatRepeat() {
+      send({ command: "loadModule", type: "Chat", module_id: CHAT_ID,
+        duration: 300000, audio: true, voice: "female", theme: "light", fontSize: "large", pause: "short", repeat: true });
+    }
+
     // ── Zeit ──────────────────────────────────────────────────────────────
 
     function testTime24() {
@@ -243,6 +251,11 @@
         duration: 300000, format: "HH:mm", showSeconds: false, showDate: true, interval: 30, audio: false });
     }
 
+    function testTimeRepeat() {
+      send({ command: "loadModule", type: "Time", module_id: TIME_ID,
+        duration: 300000, format: "HH:mm", showSeconds: false, showDate: true, interval: 30, audio: true, repeat: true });
+    }
+
     // ── Routine ───────────────────────────────────────────────────────────
 
     function testRoutineStill() {
@@ -263,6 +276,11 @@
     function testRoutinePauseLong() {
       send({ command: "loadModule", type: "Routine", module_id: ROUTINE_ID,
         duration: 600000, audio: true, voice: "female", pause: "long" });
+    }
+
+    function testRoutineRepeat() {
+      send({ command: "loadModule", type: "Routine", module_id: ROUTINE_ID,
+        duration: 600000, audio: true, voice: "female", pause: "short", repeat: true });
     }
 
     // ── Custom ────────────────────────────────────────────────────────────

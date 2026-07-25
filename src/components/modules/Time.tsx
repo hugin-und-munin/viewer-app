@@ -28,6 +28,7 @@ function hourWord(n: number): string {
 }
 
 const READING_RATE: Record<string, number> = { slow: 0.5, normal: 0.7, fast: 1.0 }
+const TIME_REPEAT_GAP_MS = 10000
 
 function timeText(date: Date): string {
   const h = date.getHours()
@@ -225,6 +226,7 @@ function Time({
   audio = true,
   voice = 'female',
   readingSpeed = 'normal',
+  repeat = false,
 }: TimeProps) {
   const rate = READING_RATE[readingSpeed] ?? 1.0
   const [now, setNow] = useState(new Date())
@@ -251,14 +253,32 @@ function Time({
 
   useEffect(() => {
     if (!audio) return
-    speakClock(new Date(), showDate, voice, rate, () => {
+    let repeated = false
+    let repeatTimer: ReturnType<typeof setTimeout> | null = null
+
+    function playOnce() {
+      speakClock(new Date(), showDate, voice, rate, handleEnd)
+    }
+
+    function handleEnd() {
       if (interruptDoneRef.current) {
         interruptDoneRef.current()
         interruptDoneRef.current = null
+        return
       }
-    })
-    return () => stop()
-  }, [showDate, voice, rate, audio])
+      if (repeat && !repeated) {
+        repeated = true
+        repeatTimer = setTimeout(playOnce, TIME_REPEAT_GAP_MS)
+      }
+    }
+
+    playOnce()
+
+    return () => {
+      if (repeatTimer) clearTimeout(repeatTimer)
+      stop()
+    }
+  }, [showDate, voice, rate, audio, repeat])
 
   return (
     <Box
