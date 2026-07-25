@@ -87,6 +87,9 @@
         <button onclick="testChatSmall()">Schrift Klein</button>
         <button onclick="testChatLarge()">Schrift Gross</button>
       </div>
+      <div class="row">
+        <button onclick="testChatPauseLong()">Pause Lang</button>
+      </div>
     </div>
 
     <div class="section">
@@ -101,6 +104,9 @@
         <button onclick="testTimeFemale()">Female</button>
         <button onclick="testTimeMale()">Male</button>
       </div>
+      <div class="row">
+        <button onclick="testTimeMuted()">Ohne Ton</button>
+      </div>
     </div>
 
     <div class="section">
@@ -111,6 +117,9 @@
       </div>
       <div class="row">
         <button onclick="testRoutineSimple()">Einfach</button>
+      </div>
+      <div class="row">
+        <button onclick="testRoutinePauseLong()">Pause Lang</button>
       </div>
     </div>
 
@@ -192,6 +201,11 @@
         duration: 300000, audio: false, theme: "light", fontSize: "large" });
     }
 
+    function testChatPauseLong() {
+      send({ command: "loadModule", type: "Chat", module_id: CHAT_ID,
+        duration: 300000, audio: true, voice: "female", theme: "light", fontSize: "large", pause: "long" });
+    }
+
     // ── Zeit ──────────────────────────────────────────────────────────────
 
     function testTime24() {
@@ -224,6 +238,11 @@
         duration: 300000, format: "HH:mm", showSeconds: false, showDate: true, interval: 30, voice: "male" });
     }
 
+    function testTimeMuted() {
+      send({ command: "loadModule", type: "Time", module_id: TIME_ID,
+        duration: 300000, format: "HH:mm", showSeconds: false, showDate: true, interval: 30, audio: false });
+    }
+
     // ── Routine ───────────────────────────────────────────────────────────
 
     function testRoutineStill() {
@@ -239,6 +258,11 @@
     function testRoutineSimple() {
       send({ command: "loadModule", type: "Routine", module_id: ROUTINE_ID,
         duration: 600000, audio: true, voice: "female", mode: "simple" });
+    }
+
+    function testRoutinePauseLong() {
+      send({ command: "loadModule", type: "Routine", module_id: ROUTINE_ID,
+        duration: 600000, audio: true, voice: "female", pause: "long" });
     }
 
     // ── Custom ────────────────────────────────────────────────────────────

@@ -27,6 +27,8 @@ function hourWord(n: number): string {
   return HOUR_WORDS[n] ?? String(n)
 }
 
+const READING_RATE: Record<string, number> = { slow: 0.5, normal: 0.7, fast: 1.0 }
+
 function timeText(date: Date): string {
   const h = date.getHours()
   const m = date.getMinutes()
@@ -46,9 +48,9 @@ function dateText(date: Date): string {
   return `Heute ist ${weekday}, der ${date.getDate()}. ${month}.`
 }
 
-function speakClock(date: Date, showDate: boolean, voice: TtsVoice, onEnd?: () => void): void {
+function speakClock(date: Date, showDate: boolean, voice: TtsVoice, rate: number, onEnd?: () => void): void {
   const text = showDate ? `${dateText(date)} ${timeText(date)}` : timeText(date)
-  speak(text, { voice, onEnd })
+  speak(text, { voice, rate, onEnd })
 }
 
 function formatDate(date: Date): string {
@@ -220,8 +222,11 @@ function Time({
   format = 'HH:mm',
   showSeconds = false,
   showDate = true,
+  audio = true,
   voice = 'female',
+  readingSpeed = 'normal',
 }: TimeProps) {
+  const rate = READING_RATE[readingSpeed] ?? 1.0
   const [now, setNow] = useState(new Date())
   const interruptDoneRef = useRef<(() => void) | null>(null)
   const onModuleDoneRef = useRef(onModuleDone)
@@ -245,14 +250,15 @@ function Time({
   }, [onShutdownRequest])
 
   useEffect(() => {
-    speakClock(new Date(), showDate, voice, () => {
+    if (!audio) return
+    speakClock(new Date(), showDate, voice, rate, () => {
       if (interruptDoneRef.current) {
         interruptDoneRef.current()
         interruptDoneRef.current = null
       }
     })
     return () => stop()
-  }, [showDate, voice])
+  }, [showDate, voice, rate, audio])
 
   return (
     <Box

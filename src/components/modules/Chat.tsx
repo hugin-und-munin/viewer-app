@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Avatar, Box, Typography } from '@mui/material'
 import { getApi } from '../../api/api'
 import type { ChatProps } from '../../types/modules'
-import { speak, stop, isSpeaking, type TtsVoice } from '../../utils/tts'
+import { speak, stop, isSpeaking, PAUSE, type TtsVoice } from '../../utils/tts'
 import { useMediaBlobUrl } from '../../utils/useMediaBlobUrl'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -14,7 +14,8 @@ const IMAGE_DISPLAY_MS = 60000
 const DEFAULT_RECENT_MESSAGE_COUNT = 10
 const FONT = "'Atkinson Hyperlegible', sans-serif"
 
-const READING_RATE: Record<string, number> = { slow: 0.7, normal: 1.0, fast: 1.4 }
+const READING_RATE: Record<string, number> = { slow: 0.5, normal: 0.7, fast: 1 }
+const SPEECH_PAUSE_MS: Record<string, number> = { short: 1000, medium: 2000, long: 4000 }
 
 const FONT_SIZE = {
   small: { header: '2rem', body: '1.8rem', bubbleMaxH: 'calc(100vh - 200px)' },
@@ -164,12 +165,14 @@ function speakMessage(
   onEnd: () => void,
   bubbleRef: React.RefObject<HTMLDivElement | null>,
   rate: number,
-  voice?: TtsVoice,
+  voice: TtsVoice | undefined,
+  pauseMs: number,
 ) {
-  const prefix = `Nachricht von ${msg.username || 'Unbekannt'}. `
-  speak(prefix + msg.content, {
+  const prefix = `Nachricht von ${msg.username || 'Unbekannt'}.`
+  speak(`${prefix}${PAUSE}${msg.content}`, {
     rate,
     voice,
+    pauseMs,
     onEnd,
     onProgress: (fraction) => {
       const el = bubbleRef.current
@@ -186,6 +189,7 @@ function useMessagePlayback(params: {
   audio: boolean
   rate: number
   ttsVoice?: TtsVoice
+  pauseMs: number
   bubbleRef: React.RefObject<HTMLDivElement | null>
   audioRef: React.RefObject<HTMLAudioElement | null>
   onShutdownRequest: ChatProps['onShutdownRequest']
@@ -198,6 +202,7 @@ function useMessagePlayback(params: {
     audio,
     rate,
     ttsVoice,
+    pauseMs,
     bubbleRef,
     audioRef,
     onShutdownRequest,
@@ -210,12 +215,16 @@ function useMessagePlayback(params: {
 
   const rateRef = useRef(rate)
   const ttsVoiceRef = useRef(ttsVoice)
+  const pauseMsRef = useRef(pauseMs)
   useEffect(() => {
     rateRef.current = rate
   }, [rate])
   useEffect(() => {
     ttsVoiceRef.current = ttsVoice
   }, [ttsVoice])
+  useEffect(() => {
+    pauseMsRef.current = pauseMs
+  }, [pauseMs])
 
   const currentMediaId = messages[index]?.media_id
   const { url: mediaBlobUrl, settled: mediaBlobSettled } = useMediaBlobUrl(currentMediaId)
@@ -273,7 +282,7 @@ function useMessagePlayback(params: {
 
     if (msg.type === 'text') {
       if (audio) {
-        speakMessage(msg, onEnd, bubbleRef, rateRef.current, ttsVoiceRef.current)
+        speakMessage(msg, onEnd, bubbleRef, rateRef.current, ttsVoiceRef.current, pauseMsRef.current)
       } else {
         timerRef.current = setTimeout(advance, DISPLAY_MS)
       }
@@ -314,7 +323,9 @@ function useMessagePlayback(params: {
           speak(`Sprachnachricht von ${name}.`, {
             rate: rateRef.current,
             voice: ttsVoiceRef.current,
-            onEnd: playAudio,
+            onEnd: () => {
+              timerRef.current = setTimeout(playAudio, pauseMsRef.current)
+            },
           })
         } else {
           playAudio()
@@ -731,6 +742,7 @@ function Chat({
   voice,
   fontSize = 'medium',
   readingSpeed = 'normal',
+  pause = 'medium',
   theme = 'light',
   recentMessageCount = DEFAULT_RECENT_MESSAGE_COUNT,
   onShutdownRequest,
@@ -741,6 +753,7 @@ function Chat({
   const audioRef = useRef<HTMLAudioElement>(null)
   const ttsVoice = audio ? voice : undefined
   const rate = READING_RATE[readingSpeed] ?? 1.0
+  const pauseMs = SPEECH_PAUSE_MS[pause] ?? 0
   const colors = CHAT_COLORS[theme]
 
   const { index, mediaBlobUrl } = useMessagePlayback({
@@ -750,6 +763,7 @@ function Chat({
     audio,
     rate,
     ttsVoice,
+    pauseMs,
     bubbleRef,
     audioRef,
     onShutdownRequest,

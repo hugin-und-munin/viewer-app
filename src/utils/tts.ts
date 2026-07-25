@@ -9,9 +9,23 @@ export type TtsVoice = 'male' | 'female'
 export interface TTSOptions {
   rate?: number // 0.1 - 10, default 1 — inverted into Piper's length_scale
   voice?: TtsVoice
+  pauseMs?: number // silence spliced in wherever `text` contains PAUSE
   onEnd?: () => void
   onProgress?: (fraction: number) => void // 0..1 playback progress, ~replaces word-boundary events
 }
+
+// Marks a pause point in text passed to speak(). Piper has no SSML/pause
+// syntax for this CLI usage, so the main process splits on this, synthesizes
+// each side separately, and splices real silence between them — see
+// PAUSE_MARKER in electron/piperTts.ts, which must match this exactly.
+// An Invisible Separator so it can never collide with real typed text.
+export const PAUSE = '⁣'
+
+// Same idea, but always a fixed short gap (see SHORT_PAUSE_MS in
+// electron/piperTts.ts) regardless of the caller's pauseMs — for boundaries
+// that are related enough that they shouldn't scale with a "long" setting
+// (e.g. an appointment and its own description). Invisible Times.
+export const PAUSE_SHORT = '⁢'
 
 // Piper/espeak-ng mispronounces German "DD. Month" dates (digit + period,
 // e.g. "23. Juli") — spell the day out as an ordinal word first. Applied
@@ -80,7 +94,12 @@ export async function speak(text: string, options: TTSOptions = {}): Promise<voi
 
   let base64Wav: string
   try {
-    base64Wav = await window.electronAPI!.synthesizeSpeech(normalizedText, voice, lengthScale)
+    base64Wav = await window.electronAPI!.synthesizeSpeech(
+      normalizedText,
+      voice,
+      lengthScale,
+      options.pauseMs ?? 0,
+    )
   } catch (err) {
     // A newer speak() or stop() call superseded this one while it was
     // synthesizing — piperTts kills the in-flight process, which rejects

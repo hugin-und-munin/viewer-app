@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import path from "path";
 import os from "os";
 import log from "electron-log/main";
+import { parseWav, buildWav, silenceBuffer } from "./wav";
 
 // Runs Piper (https://github.com/rhasspy/piper), a local neural TTS engine,
 // as a one-shot child process per utterance. Piper writes the WAV to a real
@@ -25,6 +26,19 @@ const DEFAULT_MODEL_FEMALE = "C:\\Program Files\\Piper\\piper\\de_DE-kerstin-low
 // against a real recording: -6dB removes clipping entirely (0.00%, was
 // 1.55% post-resample) while staying comfortably audible.
 const HEADROOM_GAIN = 0.5; // -6dB
+
+// Piper has no SSML/pause syntax for this CLI usage, so a requested pause is
+// built by synthesizing each side separately and splicing real silence
+// between them. Two markers: PAUSE_MARKER uses the caller-supplied pauseMs
+// (the module's short/medium/long setting), PAUSE_SHORT_MARKER is always a
+// fixed short gap regardless of that setting (e.g. appointment → its own
+// description — related enough that it shouldn't scale with the "long" option).
+// Both must match the PAUSE/PAUSE_SHORT constants in src/utils/tts.ts exactly —
+// Invisible Separator / Invisible Times so they can never collide with real
+// typed text.
+const PAUSE_MARKER = "⁣";
+const PAUSE_SHORT_MARKER = "⁢";
+const SHORT_PAUSE_MS = 500;
 
 export type PiperVoice = "male" | "female";
 
@@ -55,35 +69,32 @@ function attenuateWavInPlace(buf: Buffer, gain: number): void {
   }
 }
 
-// Only one utterance should ever be synthesizing at a time — e.g. React
+// Only one utterance (which may now involve several piper processes, one per
+// paused segment) should ever be synthesizing at a time — e.g. React
 // StrictMode's dev-mode double-invoke can fire a module's speak effect twice
-// in quick succession. Without this, two piper processes could run
-// concurrently and (depending on how the renderer reacts to two in-flight
-// requests) risk overlapping audio. Tracking and killing the previous
-// process makes "only one at a time" true at the source, not just something
-// the renderer has to get right on its own.
-let activeProc: ChildProcess | null = null;
+// in quick succession. A new request kills everything still tracked here
+// before starting; each killed process's 'close' handler rejects with
+// "piper synthesis superseded", which propagates out through the older
+// call's Promise.all/await — no separate generation counter needed.
+let activeProcs: ChildProcess[] = [];
 
-export async function synthesizeSpeech(
+function killActive(): void {
+  for (const p of activeProcs) p.kill();
+  activeProcs = [];
+}
+
+async function synthesizeOneSegment(
   text: string,
-  voice: PiperVoice,
+  exe: string,
+  model: string,
   lengthScale: number,
 ): Promise<Buffer> {
-  const exe = process.env.PIPER_EXE || DEFAULT_EXE;
-  const model = modelPathFor(voice);
   // Piper treats each line of stdin as a separate utterance and emits one
-  // WAV per line. Chat messages can contain literal newlines (multi-line
-  // input); with a single output file that silently left only the last
-  // line's audio behind. Collapse to a single line so piper only ever
-  // synthesizes (and writes) one utterance.
+  // WAV per line. Collapse to a single line so it only ever synthesizes (and
+  // writes) one utterance for this segment.
   const singleLineText = text.replace(/\r?\n+/g, " ").trim();
-
-  if (activeProc) {
-    activeProc.kill();
-    activeProc = null;
-  }
-
   const tmpFile = path.join(os.tmpdir(), `piper-${randomUUID()}.wav`);
+
   try {
     await new Promise<void>((resolve, reject) => {
       const proc = spawn(exe, [
@@ -91,18 +102,18 @@ export async function synthesizeSpeech(
         "--output_file", tmpFile,
         "--length_scale", String(lengthScale),
       ]);
-      activeProc = proc;
+      activeProcs.push(proc);
 
       let stderr = "";
       proc.stderr.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
 
       proc.on("error", (err) => {
-        if (activeProc === proc) activeProc = null;
+        activeProcs = activeProcs.filter((p) => p !== proc);
         reject(new Error(`piper could not be started (${exe}): ${err.message}`));
       });
 
       proc.on("close", (code) => {
-        if (activeProc === proc) activeProc = null;
+        activeProcs = activeProcs.filter((p) => p !== proc);
         if (code === null) {
           // Killed (superseded by a newer request) — reject quietly, no error log.
           reject(new Error("piper synthesis superseded"));
@@ -119,21 +130,86 @@ export async function synthesizeSpeech(
       proc.stdin.end();
     });
 
-    const wav = await fs.readFile(tmpFile);
-    attenuateWavInPlace(wav, HEADROOM_GAIN);
-    return wav;
+    return await fs.readFile(tmpFile);
   } finally {
     fs.unlink(tmpFile).catch(() => {});
   }
+}
+
+interface Segment {
+  text: string;
+  // Silence to splice in after this segment; 0 for the last segment or when
+  // no pause was requested at that point.
+  pauseAfterMs: number;
+}
+
+function splitIntoSegments(text: string, pauseMs: number): Segment[] {
+  const parts = text.split(new RegExp(`(${PAUSE_MARKER}|${PAUSE_SHORT_MARKER})`));
+  const segments: Segment[] = [];
+  for (let i = 0; i < parts.length; i += 2) {
+    const t = parts[i].trim();
+    if (!t) continue;
+    const marker = parts[i + 1];
+    const pauseAfterMs =
+      marker === PAUSE_SHORT_MARKER ? SHORT_PAUSE_MS : marker === PAUSE_MARKER ? pauseMs : 0;
+    segments.push({ text: t, pauseAfterMs });
+  }
+  return segments;
+}
+
+export async function synthesizeSpeech(
+  text: string,
+  voice: PiperVoice,
+  lengthScale: number,
+  pauseMs = 0,
+): Promise<Buffer> {
+  const exe = process.env.PIPER_EXE || DEFAULT_EXE;
+  const model = modelPathFor(voice);
+  const segments = splitIntoSegments(text, pauseMs);
+
+  killActive();
+
+  const needsSplicing = segments.length > 1 && segments.some((s) => s.pauseAfterMs > 0);
+  if (!needsSplicing) {
+    const joined = segments.map((s) => s.text).join(" ") || text;
+    const wav = await synthesizeOneSegment(joined, exe, model, lengthScale);
+    attenuateWavInPlace(wav, HEADROOM_GAIN);
+    return wav;
+  }
+
+  // Synthesize every segment in parallel — much lower total latency than
+  // sequential spawns, and correctness doesn't depend on ordering since each
+  // segment's position in the final audio comes from its array index, not
+  // from completion order.
+  const wavs = await Promise.all(
+    segments.map((seg) => synthesizeOneSegment(seg.text, exe, model, lengthScale)),
+  );
+
+  const parsed = wavs.map(parseWav);
+  const fmt = parsed[0].fmt;
+
+  const pieces: Buffer[] = [];
+  parsed.forEach((p, i) => {
+    pieces.push(p.data);
+    const gapMs = segments[i].pauseAfterMs;
+    if (i < parsed.length - 1 && gapMs > 0) {
+      pieces.push(silenceBuffer(fmt, gapMs));
+    }
+  });
+
+  const combined = buildWav(fmt, Buffer.concat(pieces));
+  attenuateWavInPlace(combined, HEADROOM_GAIN);
+  return combined;
 }
 
 export async function synthesizeSpeechBase64(
   text: string,
   voice: PiperVoice,
   lengthScale: number,
+  pauseMs = 0,
 ): Promise<string> {
   try {
-    const wav = await synthesizeSpeech(text, voice, lengthScale);
+    const wav = await synthesizeSpeech(text, voice, lengthScale, pauseMs);
     return wav.toString("base64");
   } catch (err) {
     if (!(err instanceof Error) || err.message !== "piper synthesis superseded") {

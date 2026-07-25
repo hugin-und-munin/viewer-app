@@ -1,7 +1,7 @@
 import { type RefObject, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Box, Typography } from '@mui/material'
 import type { RoutineProps } from '../../types/modules'
-import { speak, stop, isSpeaking, type TtsVoice } from '../../utils/tts'
+import { speak, stop, isSpeaking, PAUSE, PAUSE_SHORT, type TtsVoice } from '../../utils/tts'
 import { getApi } from '../../api/api'
 import { DAY_COLORS, DAY_OUTLINE_COLORS, DAY_OUTLINE_WIDTH, DAY_NAMES } from '../../utils/dayColors'
 import { useMediaBlobUrl } from '../../utils/useMediaBlobUrl'
@@ -11,10 +11,11 @@ import { useMediaBlobUrl } from '../../utils/useMediaBlobUrl'
 const FONT = "'Atkinson Hyperlegible', sans-serif"
 
 const READING_RATE: Record<string, number> = {
-  slow: 0.7,
-  normal: 1.0,
-  fast: 1.4,
+  slow: 0.5,
+  normal: 0.7,
+  fast: 1,
 }
+const PAUSE_MS: Record<string, number> = { short: 1000, medium: 2000, long: 4000 }
 
 const MORNING_START = 8
 const MORNING_END = 12
@@ -211,6 +212,9 @@ function breakOrdinal(text: string): string {
   )
 }
 
+// Title/time → its own description is a fixed short pause (PAUSE_SHORT) —
+// closely related content that shouldn't stretch out with the "long" setting
+// the way the bigger topic changes (greeting → intro → active → next) do.
 function buildTTSText(
   active: Appointment | undefined,
   next: Appointment | undefined,
@@ -218,15 +222,23 @@ function buildTTSText(
   periodLabel: string,
 ): string {
   const now = new Date()
-  const intro = `${getGreeting(now)} Hier ist deine Tagesroutine für ${dayName} ${periodLabel}.`
-  const activePart = active
-    ? `Du befindest dich gerade bei: ${breakOrdinal(active.title)}, von ${formatTime(active.start_at)} bis ${formatTime(active.end_at)}. ${breakOrdinal(active.description)}`
-    : 'Momentan ist kein Termin aktiv.'
-  const nextPart = next
-    ? `Als nächstes folgt: ${breakOrdinal(next.title)}. ${breakOrdinal(next.description)}`
-    : ''
+  const parts = [getGreeting(now), PAUSE, `Hier ist deine Tagesroutine für ${dayName} ${periodLabel}.`, PAUSE]
 
-  return [intro, activePart, nextPart].filter(Boolean).join(' ')
+  if (active) {
+    parts.push(
+      `Du befindest dich gerade bei: ${breakOrdinal(active.title)}, von ${formatTime(active.start_at)} bis ${formatTime(active.end_at)}.`,
+    )
+    if (active.description) parts.push(PAUSE_SHORT, breakOrdinal(active.description))
+  } else {
+    parts.push('Momentan ist kein Termin aktiv.')
+  }
+
+  if (next) {
+    parts.push(PAUSE, `Als nächstes folgt: ${breakOrdinal(next.title)}.`)
+    if (next.description) parts.push(PAUSE_SHORT, breakOrdinal(next.description))
+  }
+
+  return parts.join('')
 }
 
 function roundToNearest5Minutes(date: Date): Date {
@@ -239,20 +251,24 @@ function roundToNearest5Minutes(date: Date): Date {
 function buildSimpleTTSText(active: Appointment | undefined, next: Appointment | undefined, dayName: string): string {
   const now = new Date()
   const roundedTime = formatTime(roundToNearest5Minutes(now).toISOString())
-  const intro = `Hier ist deine Tagesroutine. Es ist ${dayName}, ${roundedTime}.`
+  const parts = ['Hier ist deine Tagesroutine.', PAUSE, `Es ist ${dayName}, ${roundedTime}.`]
 
   if (!active && !next) {
-    return `${intro} Für heute sind keine weiteren Termine geplant.`
+    parts.push(PAUSE, 'Für heute sind keine weiteren Termine geplant.')
+    return parts.join('')
   }
 
-  const activePart = active
-    ? `Du befindest dich gerade bei: ${breakOrdinal(active.title)}. ${breakOrdinal(active.description)}`
-    : ''
-  const nextPart = next
-    ? `Um ${formatTime(next.start_at)} folgt: ${breakOrdinal(next.title)}. ${breakOrdinal(next.description)}`
-    : ''
+  if (active) {
+    parts.push(PAUSE, `Du befindest dich gerade bei: ${breakOrdinal(active.title)}.`)
+    if (active.description) parts.push(PAUSE_SHORT, breakOrdinal(active.description))
+  }
 
-  return [intro, activePart, nextPart].filter(Boolean).join(' ')
+  if (next) {
+    parts.push(PAUSE, `Um ${formatTime(next.start_at)} folgt: ${breakOrdinal(next.title)}.`)
+    if (next.description) parts.push(PAUSE_SHORT, breakOrdinal(next.description))
+  }
+
+  return parts.join('')
 }
 
 // ─── Hooks ────────────────────────────────────────────────────────────────────
@@ -322,6 +338,7 @@ function useTTS(
   rate: number,
   hasAppointments: boolean,
   mode: 'overview' | 'simple',
+  pauseMs: number,
   voice?: TtsVoice,
 ) {
   const interruptDoneRef = useRef<(() => void) | null>(null)
@@ -333,6 +350,7 @@ function useTTS(
     voice,
     hasAppointments,
     mode,
+    pauseMs,
     onModuleDone,
   })
   useEffect(() => {
@@ -343,9 +361,10 @@ function useTTS(
       voice,
       hasAppointments,
       mode,
+      pauseMs,
       onModuleDone,
     }
-  }, [active, next, rate, voice, hasAppointments, mode, onModuleDone])
+  }, [active, next, rate, voice, hasAppointments, mode, pauseMs, onModuleDone])
 
   useEffect(() => {
     onShutdownRequest?.(() => {
@@ -366,12 +385,14 @@ function useTTS(
       voice: v,
       hasAppointments: has,
       mode: m,
+      pauseMs: p,
       onModuleDone: done,
     } = paramsRef.current
     const text = m === 'simple' ? buildSimpleTTSText(a, n, dayName) : buildTTSText(a, n, dayName, periodLabel)
     speak(text, {
       rate: r,
       voice: v,
+      pauseMs: p,
       onEnd: () => {
         if (interruptDoneRef.current) {
           interruptDoneRef.current()
@@ -624,6 +645,7 @@ function Routine({
   audio = true,
   voice = 'female',
   readingSpeed = 'normal',
+  pause = 'medium',
   mode = 'overview',
 }: RoutineProps) {
   const [now, setNow] = useState(() => new Date())
@@ -640,6 +662,7 @@ function Routine({
   const { ref: rowRef, size: rowSize } = useRowSize(loading)
   const ttsVoice = audio ? voice : undefined
   const rate = READING_RATE[readingSpeed] ?? 1.0
+  const pauseMs = PAUSE_MS[pause] ?? 0
 
   const visible = filterBySlot(appointments, now)
   const activeIndex = findActiveIndex(visible, now)
@@ -679,6 +702,7 @@ function Routine({
     rate,
     hasAppointments,
     mode,
+    pauseMs,
     ttsVoice,
   )
 

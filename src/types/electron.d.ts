@@ -15,7 +15,12 @@ declare global {
     appVersion: () => Promise<string>
     cacheRead: (filename: string) => Promise<string | null>
     cacheWrite: (filename: string, data: string) => Promise<void>
-    synthesizeSpeech: (text: string, voice: 'male' | 'female', lengthScale: number) => Promise<string>
+    synthesizeSpeech: (
+      text: string,
+      voice: 'male' | 'female',
+      lengthScale: number,
+      pauseMs: number,
+    ) => Promise<string>
     onControl: (callback: (data: unknown) => void) => void
     offControl: (callback: (data: unknown) => void) => void
   }
