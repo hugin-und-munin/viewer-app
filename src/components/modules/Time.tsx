@@ -3,6 +3,7 @@ import { Box, Typography } from '@mui/material'
 import { speak, stop, isSpeaking, type TtsVoice } from '../../utils/tts'
 import { DAY_OUTLINE_COLORS, DAY_OUTLINE_WIDTH } from '../../utils/dayColors'
 import type { TimeProps } from '../../types/modules'
+import { READING_RATE, LONG_PAUSE_MS } from '../../utils/ttsPacing'
 
 const FONT = "'Atkinson Hyperlegible', sans-serif"
 
@@ -27,9 +28,6 @@ function hourWord(n: number): string {
   return HOUR_WORDS[n] ?? String(n)
 }
 
-const READING_RATE: Record<string, number> = { slow: 0.5, normal: 0.7, fast: 1.0 }
-const TIME_REPEAT_GAP_MS = 10000
-
 function timeText(date: Date): string {
   const h = date.getHours()
   const m = date.getMinutes()
@@ -49,7 +47,13 @@ function dateText(date: Date): string {
   return `Heute ist ${weekday}, der ${date.getDate()}. ${month}.`
 }
 
-function speakClock(date: Date, showDate: boolean, voice: TtsVoice, rate: number, onEnd?: () => void): void {
+function speakClock(
+  date: Date,
+  showDate: boolean,
+  voice: TtsVoice,
+  rate: number,
+  onEnd?: () => void,
+): void {
   const text = showDate ? `${dateText(date)} ${timeText(date)}` : timeText(date)
   speak(text, { voice, rate, onEnd })
 }
@@ -226,11 +230,14 @@ function Time({
   audio = true,
   voice = 'female',
   readingSpeed = 'normal',
+  pause = 'medium',
   repeat = false,
 }: TimeProps) {
   const rate = READING_RATE[readingSpeed] ?? 1.0
+  const repeatGapMs = LONG_PAUSE_MS[pause] ?? 0
   const [now, setNow] = useState(new Date())
   const interruptDoneRef = useRef<(() => void) | null>(null)
+  const hasStartedRef = useRef(false)
   const onModuleDoneRef = useRef(onModuleDone)
   useEffect(() => {
     onModuleDoneRef.current = onModuleDone
@@ -268,17 +275,23 @@ function Time({
       }
       if (repeat && !repeated) {
         repeated = true
-        repeatTimer = setTimeout(playOnce, TIME_REPEAT_GAP_MS)
+        repeatTimer = setTimeout(playOnce, repeatGapMs)
       }
     }
 
-    playOnce()
+    // Pause before the module's very first utterance too — only once per
+    // module instance (a fresh mount per showModule() call), not on every
+    // re-run of this effect within the same showing.
+    const startDelay = hasStartedRef.current ? 0 : repeatGapMs
+    hasStartedRef.current = true
+    const startTimer = setTimeout(playOnce, startDelay)
 
     return () => {
+      clearTimeout(startTimer)
       if (repeatTimer) clearTimeout(repeatTimer)
       stop()
     }
-  }, [showDate, voice, rate, audio, repeat])
+  }, [showDate, voice, rate, audio, repeat, repeatGapMs])
 
   return (
     <Box

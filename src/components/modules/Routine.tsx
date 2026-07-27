@@ -5,18 +5,11 @@ import { speak, stop, isSpeaking, PAUSE, PAUSE_SHORT, type TtsVoice } from '../.
 import { getApi } from '../../api/api'
 import { DAY_COLORS, DAY_OUTLINE_COLORS, DAY_OUTLINE_WIDTH, DAY_NAMES } from '../../utils/dayColors'
 import { useMediaBlobUrl } from '../../utils/useMediaBlobUrl'
+import { READING_RATE, SHORT_PAUSE_MS, LONG_PAUSE_MS } from '../../utils/ttsPacing'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const FONT = "'Atkinson Hyperlegible', sans-serif"
-
-const READING_RATE: Record<string, number> = {
-  slow: 0.5,
-  normal: 0.7,
-  fast: 1,
-}
-const PAUSE_MS: Record<string, number> = { short: 1000, medium: 2000, long: 4000 }
-const REPEAT_GAP_MS: Record<string, number> = { short: 3000, medium: 6000, long: 10000 }
 
 const MORNING_START = 8
 const MORNING_END = 12
@@ -223,7 +216,12 @@ function buildTTSText(
   periodLabel: string,
 ): string {
   const now = new Date()
-  const parts = [getGreeting(now), PAUSE, `Hier ist deine Tagesroutine für ${dayName} ${periodLabel}.`, PAUSE]
+  const parts = [
+    getGreeting(now),
+    PAUSE,
+    `Hier ist deine Tagesroutine für ${dayName} ${periodLabel}.`,
+    PAUSE,
+  ]
 
   if (active) {
     parts.push(
@@ -249,7 +247,11 @@ function roundToNearest5Minutes(date: Date): Date {
 
 // Simple mode: short, easy-to-follow announcement — no time ranges, no
 // mention of "nothing active right now" (goes straight to what's next).
-function buildSimpleTTSText(active: Appointment | undefined, next: Appointment | undefined, dayName: string): string {
+function buildSimpleTTSText(
+  active: Appointment | undefined,
+  next: Appointment | undefined,
+  dayName: string,
+): string {
   const now = new Date()
   const roundedTime = formatTime(roundToNearest5Minutes(now).toISOString())
   const parts = ['Hier ist deine Tagesroutine.', PAUSE, `Es ist ${dayName}, ${roundedTime}.`]
@@ -345,6 +347,7 @@ function useTTS(
   voice?: TtsVoice,
 ) {
   const interruptDoneRef = useRef<(() => void) | null>(null)
+  const hasStartedRef = useRef(false)
 
   const paramsRef = useRef({
     active,
@@ -397,7 +400,8 @@ function useTTS(
       repeatGapMs: rg,
       onModuleDone: done,
     } = paramsRef.current
-    const text = m === 'simple' ? buildSimpleTTSText(a, n, dayName) : buildTTSText(a, n, dayName, periodLabel)
+    const text =
+      m === 'simple' ? buildSimpleTTSText(a, n, dayName) : buildTTSText(a, n, dayName, periodLabel)
 
     let repeated = false
     let repeatTimer: ReturnType<typeof setTimeout> | null = null
@@ -420,9 +424,15 @@ function useTTS(
       }
     }
 
-    playOnce()
+    // Pause before the module's very first utterance too — only once per
+    // module instance (a fresh mount per showModule() call), not on every
+    // re-run of this effect within the same showing (e.g. active/next changing).
+    const startDelay = hasStartedRef.current ? 0 : rg
+    hasStartedRef.current = true
+    const startTimer = setTimeout(playOnce, startDelay)
 
     return () => {
+      clearTimeout(startTimer)
       if (repeatTimer) clearTimeout(repeatTimer)
       stop()
     }
@@ -586,7 +596,10 @@ function computeSimpleCardSizes(
   if (!containerSize) return { featuredSize: 340, nextSize: 160 }
   const maxHeight = Math.floor(containerSize.height * 0.85)
   if (!showNextCard) {
-    return { featuredSize: Math.min(Math.floor(containerSize.width * 0.55), maxHeight), nextSize: 0 }
+    return {
+      featuredSize: Math.min(Math.floor(containerSize.width * 0.55), maxHeight),
+      nextSize: 0,
+    }
   }
   const unit = Math.floor((containerSize.width - SIMPLE_GAP) / 3)
   return {
@@ -686,8 +699,8 @@ function Routine({
   const { ref: rowRef, size: rowSize } = useRowSize(loading)
   const ttsVoice = audio ? voice : undefined
   const rate = READING_RATE[readingSpeed] ?? 1.0
-  const pauseMs = PAUSE_MS[pause] ?? 0
-  const repeatGapMs = REPEAT_GAP_MS[pause] ?? 0
+  const pauseMs = SHORT_PAUSE_MS[pause] ?? 0
+  const repeatGapMs = LONG_PAUSE_MS[pause] ?? 0
 
   const visible = filterBySlot(appointments, now)
   const activeIndex = findActiveIndex(visible, now)
@@ -824,7 +837,11 @@ function Routine({
       </Box>
 
       {isSimple ? (
-        <SimpleView active={todayActiveAppointment} next={todayNextAppointment} dayColor={dayColor} />
+        <SimpleView
+          active={todayActiveAppointment}
+          next={todayNextAppointment}
+          dayColor={dayColor}
+        />
       ) : (
         <Box
           ref={rowRef}
@@ -843,7 +860,10 @@ function Routine({
           }}
         >
           {visible.length === 0 ? (
-            <Typography role="status" sx={{ fontFamily: FONT, fontSize: '2rem', color: 'grey.700' }}>
+            <Typography
+              role="status"
+              sx={{ fontFamily: FONT, fontSize: '2rem', color: 'grey.700' }}
+            >
               Keine Termine
             </Typography>
           ) : (

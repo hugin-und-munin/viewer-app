@@ -88,6 +88,7 @@
         <button onclick="testChatLarge()">Schrift Gross</button>
       </div>
       <div class="row">
+        <button onclick="testChatPauseShort()">Pause Kurz (schnell testen)</button>
         <button onclick="testChatPauseLong()">Pause Lang</button>
         <button onclick="testChatRepeat()">Wiederholung</button>
       </div>
@@ -108,6 +109,7 @@
       <div class="row">
         <button onclick="testTimeMuted()">Ohne Ton</button>
         <button onclick="testTimeRepeat()">Wiederholung</button>
+        <button onclick="testTimePauseShort()">Pause Kurz (schnell testen)</button>
       </div>
     </div>
 
@@ -121,6 +123,7 @@
         <button onclick="testRoutineSimple()">Einfach</button>
       </div>
       <div class="row">
+        <button onclick="testRoutinePauseShort()">Pause Kurz (schnell testen)</button>
         <button onclick="testRoutinePauseLong()">Pause Lang</button>
         <button onclick="testRoutineRepeat()">Wiederholung</button>
       </div>
@@ -204,6 +207,13 @@
         duration: 300000, audio: false, theme: "light", fontSize: "large" });
     }
 
+    function testChatPauseShort() {
+      // Short scale (3s) so the pause before the first message and between
+      // messages is quick to hear without waiting through the long default.
+      send({ command: "loadModule", type: "Chat", module_id: CHAT_ID,
+        duration: 300000, audio: true, voice: "female", theme: "light", fontSize: "large", pause: "short" });
+    }
+
     function testChatPauseLong() {
       send({ command: "loadModule", type: "Chat", module_id: CHAT_ID,
         duration: 300000, audio: true, voice: "female", theme: "light", fontSize: "large", pause: "long" });
@@ -256,6 +266,14 @@
         duration: 300000, format: "HH:mm", showSeconds: false, showDate: true, interval: 30, audio: true, repeat: true });
     }
 
+    function testTimePauseShort() {
+      // Uhr just got its own Sprechpause field (start-of-module pause +
+      // repeat gap) — short scale (3s) to verify both quickly.
+      send({ command: "loadModule", type: "Time", module_id: TIME_ID,
+        duration: 300000, format: "HH:mm", showSeconds: false, showDate: true, interval: 30,
+        audio: true, pause: "short", repeat: true });
+    }
+
     // ── Routine ───────────────────────────────────────────────────────────
 
     function testRoutineStill() {
@@ -271,6 +289,12 @@
     function testRoutineSimple() {
       send({ command: "loadModule", type: "Routine", module_id: ROUTINE_ID,
         duration: 600000, audio: true, voice: "female", mode: "simple" });
+    }
+
+    function testRoutinePauseShort() {
+      // Short scale (3s) so the module-start pause is quick to hear.
+      send({ command: "loadModule", type: "Routine", module_id: ROUTINE_ID,
+        duration: 600000, audio: true, voice: "female", pause: "short" });
     }
 
     function testRoutinePauseLong() {

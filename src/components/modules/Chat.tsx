@@ -5,18 +5,14 @@ import { getApi } from '../../api/api'
 import type { ChatProps } from '../../types/modules'
 import { speak, stop, isSpeaking, PAUSE, type TtsVoice } from '../../utils/tts'
 import { useMediaBlobUrl } from '../../utils/useMediaBlobUrl'
+import { READING_RATE, SHORT_PAUSE_MS, LONG_PAUSE_MS } from '../../utils/ttsPacing'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const PAUSE_MS = 2000
 const DISPLAY_MS = 5000
 const IMAGE_DISPLAY_MS = 60000
 const DEFAULT_RECENT_MESSAGE_COUNT = 10
 const FONT = "'Atkinson Hyperlegible', sans-serif"
-
-const READING_RATE: Record<string, number> = { slow: 0.5, normal: 0.7, fast: 1 }
-const SPEECH_PAUSE_MS: Record<string, number> = { short: 1000, medium: 2000, long: 4000 }
-const REPEAT_GAP_MS: Record<string, number> = { short: 3000, medium: 6000, long: 10000 }
 
 const FONT_SIZE = {
   small: { header: '2rem', body: '1.8rem', bubbleMaxH: 'calc(100vh - 200px)' },
@@ -90,17 +86,16 @@ function useMessages(moduleId: string, recentMessageCount: number) {
         console.log(`[Chat] module_data for ${moduleId}:`, entries)
         if (cancelled) return
 
-        const base = selectRecentEntries(entries, recentMessageCount)
-          .map((e) => ({
-            id: e.id,
-            user_id: e.data.user_id,
-            username: '',
-            sender_media_id: undefined as string | undefined,
-            content: e.data.content,
-            type: (e.data.type ?? 'text') as MessageType,
-            media_id: e.data.media_id,
-            created_at: e.created_at,
-          }))
+        const base = selectRecentEntries(entries, recentMessageCount).map((e) => ({
+          id: e.id,
+          user_id: e.data.user_id,
+          username: '',
+          sender_media_id: undefined as string | undefined,
+          content: e.data.content,
+          type: (e.data.type ?? 'text') as MessageType,
+          media_id: e.data.media_id,
+          created_at: e.created_at,
+        }))
 
         const uniqueIds = [...new Set(base.map((m) => m.user_id).filter(Boolean))]
         const profileMap = new Map<string, UserPublicProfile>()
@@ -273,8 +268,11 @@ function useMessagePlayback(params: {
 
     if (bubbleRef.current) bubbleRef.current.scrollTop = 0
 
+    // Switches to the next message immediately — the pause happens before
+    // that next message is read/played (see startTimer below), not by
+    // leaving the just-finished message lingering on screen.
     const advance = () => {
-      timerRef.current = setTimeout(() => setIndex((i) => i + 1), PAUSE_MS)
+      setIndex((i) => i + 1)
     }
 
     const onEnd = () => {
@@ -293,103 +291,134 @@ function useMessagePlayback(params: {
       .post(`/modules/${moduleId}/data/${msg.id}/shown`, {})
       .catch(() => {})
 
-    if (msg.type === 'text') {
-      if (audio) {
-        let textRepeated = false
-        const handleSpeakEnd = () => {
+    function begin() {
+      if (msg.type === 'text') {
+        if (audio) {
+          let textRepeated = false
+          const handleSpeakEnd = () => {
+            if (interruptDoneRef.current) {
+              interruptDoneRef.current()
+              interruptDoneRef.current = null
+              return
+            }
+            if (repeatRef.current && !textRepeated) {
+              textRepeated = true
+              timerRef.current = setTimeout(
+                () =>
+                  speakMessage(
+                    msg,
+                    handleSpeakEnd,
+                    bubbleRef,
+                    rateRef.current,
+                    ttsVoiceRef.current,
+                    pauseMsRef.current,
+                  ),
+                repeatGapMsRef.current,
+              )
+            } else {
+              advance()
+            }
+          }
+          speakMessage(
+            msg,
+            handleSpeakEnd,
+            bubbleRef,
+            rateRef.current,
+            ttsVoiceRef.current,
+            pauseMsRef.current,
+          )
+        } else {
+          timerRef.current = setTimeout(advance, DISPLAY_MS)
+        }
+      } else if (msg.type === 'image') {
+        if (audio) {
+          speak(`Bild von ${name}.`, {
+            rate: rateRef.current,
+            voice: ttsVoiceRef.current,
+            onEnd: () => {
+              timerRef.current = setTimeout(onEnd, IMAGE_DISPLAY_MS)
+            },
+          })
+        } else {
+          timerRef.current = setTimeout(advance, IMAGE_DISPLAY_MS)
+        }
+      } else if (msg.type === 'audio') {
+        const el = audioRef.current
+        if (!el) return
+
+        let audioRepeated = false
+
+        function playAudio(onDone: () => void) {
+          const url = mediaBlobUrlRef.current
+          if (!url) {
+            onDone()
+            return
+          }
+          el.src = url
+          el.currentTime = 0
+          el.onended = onDone
+          el.oncanplay = () => {
+            el.oncanplay = null
+            el.play().catch(onDone)
+          }
+          el.load()
+        }
+
+        function handlePlaybackEnd() {
           if (interruptDoneRef.current) {
             interruptDoneRef.current()
             interruptDoneRef.current = null
             return
           }
-          if (repeatRef.current && !textRepeated) {
-            textRepeated = true
-            timerRef.current = setTimeout(
-              () =>
-                speakMessage(msg, handleSpeakEnd, bubbleRef, rateRef.current, ttsVoiceRef.current, pauseMsRef.current),
-              repeatGapMsRef.current,
-            )
+          if (repeatRef.current && !audioRepeated) {
+            audioRepeated = true
+            timerRef.current = setTimeout(doPlayback, repeatGapMsRef.current)
           } else {
             advance()
           }
         }
-        speakMessage(msg, handleSpeakEnd, bubbleRef, rateRef.current, ttsVoiceRef.current, pauseMsRef.current)
+
+        function doPlayback() {
+          if (audio) {
+            speak(`Sprachnachricht von ${name}.`, {
+              rate: rateRef.current,
+              voice: ttsVoiceRef.current,
+              onEnd: () => {
+                timerRef.current = setTimeout(
+                  () => playAudio(handlePlaybackEnd),
+                  pauseMsRef.current,
+                )
+              },
+            })
+          } else {
+            playAudio(handlePlaybackEnd)
+          }
+        }
+
+        if (mediaBlobUrlRef.current) {
+          doPlayback()
+        } else {
+          triggerAudioRef.current = doPlayback
+        }
       } else {
         timerRef.current = setTimeout(advance, DISPLAY_MS)
       }
-    } else if (msg.type === 'image') {
-      if (audio) {
-        speak(`Bild von ${name}.`, {
-          rate: rateRef.current,
-          voice: ttsVoiceRef.current,
-          onEnd: () => {
-            timerRef.current = setTimeout(onEnd, IMAGE_DISPLAY_MS)
-          },
-        })
-      } else {
-        timerRef.current = setTimeout(advance, IMAGE_DISPLAY_MS)
-      }
-    } else if (msg.type === 'audio') {
-      const el = audioRef.current
-      if (!el) return
+    }
 
-      let audioRepeated = false
-
-      function playAudio(onDone: () => void) {
-        const url = mediaBlobUrlRef.current
-        if (!url) {
-          onDone()
-          return
-        }
-        el.src = url
-        el.currentTime = 0
-        el.onended = onDone
-        el.oncanplay = () => {
-          el.oncanplay = null
-          el.play().catch(onDone)
-        }
-        el.load()
-      }
-
-      function handlePlaybackEnd() {
-        if (interruptDoneRef.current) {
-          interruptDoneRef.current()
-          interruptDoneRef.current = null
-          return
-        }
-        if (repeatRef.current && !audioRepeated) {
-          audioRepeated = true
-          timerRef.current = setTimeout(doPlayback, repeatGapMsRef.current)
-        } else {
-          advance()
-        }
-      }
-
-      function doPlayback() {
-        if (audio) {
-          speak(`Sprachnachricht von ${name}.`, {
-            rate: rateRef.current,
-            voice: ttsVoiceRef.current,
-            onEnd: () => {
-              timerRef.current = setTimeout(() => playAudio(handlePlaybackEnd), pauseMsRef.current)
-            },
-          })
-        } else {
-          playAudio(handlePlaybackEnd)
-        }
-      }
-
-      if (mediaBlobUrlRef.current) {
-        doPlayback()
-      } else {
-        triggerAudioRef.current = doPlayback
-      }
+    // Pause before this message is read/played — applies uniformly to every
+    // message, including the first. The message is already visible on
+    // screen at this point (advance() switched immediately); the silence
+    // sits in front of the new message, not trailing after the old one.
+    let startTimer: ReturnType<typeof setTimeout> | null = null
+    if (audio) {
+      startTimer = setTimeout(begin, repeatGapMsRef.current)
     } else {
-      timerRef.current = setTimeout(advance, DISPLAY_MS)
+      begin()
     }
 
     const audioEl = audioRef.current
     return () => {
+      if (startTimer) clearTimeout(startTimer)
       triggerAudioRef.current = null
       if (timerRef.current) clearTimeout(timerRef.current)
       if (audioEl) {
@@ -801,8 +830,8 @@ function Chat({
   const audioRef = useRef<HTMLAudioElement>(null)
   const ttsVoice = audio ? voice : undefined
   const rate = READING_RATE[readingSpeed] ?? 1.0
-  const pauseMs = SPEECH_PAUSE_MS[pause] ?? 0
-  const repeatGapMs = REPEAT_GAP_MS[pause] ?? 0
+  const pauseMs = SHORT_PAUSE_MS[pause] ?? 0
+  const repeatGapMs = LONG_PAUSE_MS[pause] ?? 0
   const colors = CHAT_COLORS[theme]
 
   const { index, mediaBlobUrl } = useMessagePlayback({

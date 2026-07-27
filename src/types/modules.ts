@@ -39,6 +39,7 @@ export interface TimeProps extends BaseModule {
   audio?: boolean
   voice?: 'male' | 'female'
   readingSpeed?: 'slow' | 'normal' | 'fast'
+  pause?: 'short' | 'medium' | 'long'
   repeat?: boolean
 }
 
