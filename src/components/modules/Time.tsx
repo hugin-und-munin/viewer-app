@@ -4,41 +4,24 @@ import { speak, stop, isSpeaking, type TtsVoice } from '../../utils/tts'
 import { DAY_OUTLINE_COLORS, DAY_OUTLINE_WIDTH } from '../../utils/dayColors'
 import type { TimeProps } from '../../types/modules'
 import { READING_RATE, LONG_PAUSE_MS } from '../../utils/ttsPacing'
+import {
+  roundToNearest5Minutes,
+  naturalTimePhrase,
+  exactTimePhrase,
+} from '../../utils/timeAnnouncement'
 
 const FONT = "'Atkinson Hyperlegible', sans-serif"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const HOUR_WORDS: Record<number, string> = {
-  1: 'eins',
-  2: 'zwei',
-  3: 'drei',
-  4: 'vier',
-  5: 'fünf',
-  6: 'sechs',
-  7: 'sieben',
-  8: 'acht',
-  9: 'neun',
-  10: 'zehn',
-  11: 'elf',
-  12: 'zwölf',
-}
+type TimeAnnouncement = 'natural' | 'exact'
 
-function hourWord(n: number): string {
-  return HOUR_WORDS[n] ?? String(n)
-}
-
-function timeText(date: Date): string {
-  const h = date.getHours()
-  const m = date.getMinutes()
-  const h12 = h % 12 === 0 ? 12 : h % 12
-  const nextH12 = (h + 1) % 12 === 0 ? 12 : (h + 1) % 12
-
-  if (m === 0) return `Es ist ${h} Uhr.`
-  if (m === 15) return `Es ist Viertel nach ${hourWord(h12)}.`
-  if (m === 30) return `Es ist halb ${hourWord(nextH12)}.`
-  if (m === 45) return `Es ist Viertel vor ${hourWord(nextH12)}.`
-  return `Es ist ${h} Uhr ${m}.`
+// "natural": rounded to 5 minutes, spoken as "Viertel nach zehn" etc.
+// "exact": minute-precise, always 24h digits — see exactTimePhrase for why.
+function timeText(date: Date, mode: TimeAnnouncement): string {
+  const phrase =
+    mode === 'exact' ? exactTimePhrase(date) : naturalTimePhrase(roundToNearest5Minutes(date))
+  return `Es ist ${phrase}.`
 }
 
 function dateText(date: Date): string {
@@ -52,9 +35,12 @@ function speakClock(
   showDate: boolean,
   voice: TtsVoice,
   rate: number,
+  timeAnnouncement: TimeAnnouncement,
   onEnd?: () => void,
 ): void {
-  const text = showDate ? `${dateText(date)} ${timeText(date)}` : timeText(date)
+  const text = showDate
+    ? `${dateText(date)} ${timeText(date, timeAnnouncement)}`
+    : timeText(date, timeAnnouncement)
   speak(text, { voice, rate, onEnd })
 }
 
@@ -232,6 +218,7 @@ function Time({
   readingSpeed = 'normal',
   pause = 'medium',
   repeat = false,
+  timeAnnouncement = 'natural',
 }: TimeProps) {
   const rate = READING_RATE[readingSpeed] ?? 1.0
   const repeatGapMs = LONG_PAUSE_MS[pause] ?? 0
@@ -264,7 +251,7 @@ function Time({
     let repeatTimer: ReturnType<typeof setTimeout> | null = null
 
     function playOnce() {
-      speakClock(new Date(), showDate, voice, rate, handleEnd)
+      speakClock(new Date(), showDate, voice, rate, timeAnnouncement, handleEnd)
     }
 
     function handleEnd() {
@@ -291,7 +278,7 @@ function Time({
       if (repeatTimer) clearTimeout(repeatTimer)
       stop()
     }
-  }, [showDate, voice, rate, audio, repeat, repeatGapMs])
+  }, [showDate, voice, rate, audio, repeat, repeatGapMs, timeAnnouncement])
 
   return (
     <Box

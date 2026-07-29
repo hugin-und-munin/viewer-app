@@ -6,6 +6,7 @@ import { getApi } from '../../api/api'
 import { DAY_COLORS, DAY_OUTLINE_COLORS, DAY_OUTLINE_WIDTH, DAY_NAMES } from '../../utils/dayColors'
 import { useMediaBlobUrl } from '../../utils/useMediaBlobUrl'
 import { READING_RATE, SHORT_PAUSE_MS, LONG_PAUSE_MS } from '../../utils/ttsPacing'
+import { roundToNearest5Minutes, naturalTimePhrase } from '../../utils/timeAnnouncement'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -134,17 +135,11 @@ function getGreeting(date: Date): string {
   return 'Guten Abend!'
 }
 
+// Real appointment times are arbitrary minutes, not necessarily on a 5-minute
+// mark — naturalTimePhrase already falls back to a plain digit form for
+// those, so this only needs to hand off, not round anything itself.
 function formatTime(iso: string): string {
-  const d = new Date(iso)
-  const h = d.getHours()
-  const m = d.getMinutes()
-  const h12 = h % 12 === 0 ? 12 : h % 12
-  const nextH12 = (h + 1) % 12 === 0 ? 12 : (h + 1) % 12
-  if (m === 0) return `${h12} Uhr`
-  if (m === 15) return `Viertel nach ${h12}`
-  if (m === 30) return `halb ${nextH12}`
-  if (m === 45) return `Viertel vor ${nextH12}`
-  return `${h12} Uhr ${m}`
+  return naturalTimePhrase(new Date(iso))
 }
 
 // ─── Appointment helpers ──────────────────────────────────────────────────────
@@ -238,11 +233,6 @@ function buildTTSText(
   }
 
   return parts.join('')
-}
-
-function roundToNearest5Minutes(date: Date): Date {
-  const ms = 5 * 60 * 1000
-  return new Date(Math.round(date.getTime() / ms) * ms)
 }
 
 // Simple mode: short, easy-to-follow announcement — no time ranges, no

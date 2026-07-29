@@ -42,6 +42,7 @@ export interface TimeProps extends BaseModule {
   readingSpeed?: 'slow' | 'normal' | 'fast'
   pause?: 'short' | 'medium' | 'long'
   repeat?: boolean
+  timeAnnouncement?: 'natural' | 'exact'
 }
 
 export type ModuleProps = ChatProps | RoutineProps | TimeProps

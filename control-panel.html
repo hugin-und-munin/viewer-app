@@ -114,6 +114,10 @@
         <button onclick="testTimeRepeat()">Wiederholung</button>
         <button onclick="testTimePauseShort()">Pause Kurz (schnell testen)</button>
       </div>
+      <div class="row">
+        <button onclick="testTimeNatural()">Zeitansage Natürlich</button>
+        <button onclick="testTimeExact()">Zeitansage Genau</button>
+      </div>
     </div>
 
     <div class="section">
@@ -282,6 +286,22 @@
       send({ command: "loadModule", type: "Time", module_id: TIME_ID,
         duration: 300000, format: "HH:mm", showSeconds: false, showDate: true, interval: 30,
         audio: true, pause: "short", repeat: true });
+    }
+
+    function testTimeNatural() {
+      // e.g. 21:47 should round to 21:45 and say "Viertel vor zehn" (12h),
+      // regardless of the 24h visual format below.
+      send({ command: "loadModule", type: "Time", module_id: TIME_ID,
+        duration: 300000, format: "HH:mm", showSeconds: false, showDate: true, interval: 30,
+        audio: true, timeAnnouncement: "natural" });
+    }
+
+    function testTimeExact() {
+      // e.g. 21:47 should say "einundzwanzig Uhr siebenundvierzig" (24h,
+      // unrounded), regardless of the 24h visual format below.
+      send({ command: "loadModule", type: "Time", module_id: TIME_ID,
+        duration: 300000, format: "HH:mm", showSeconds: false, showDate: true, interval: 30,
+        audio: true, timeAnnouncement: "exact" });
     }
 
     // ── Routine ───────────────────────────────────────────────────────────
