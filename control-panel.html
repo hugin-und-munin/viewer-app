@@ -92,6 +92,9 @@
         <button onclick="testChatPauseLong()">Pause Lang</button>
         <button onclick="testChatRepeat()">Wiederholung</button>
       </div>
+      <div class="row">
+        <button onclick="testChatImageShort()">Bilddauer 0.5min</button>
+      </div>
     </div>
 
     <div class="section">
@@ -222,6 +225,13 @@
     function testChatRepeat() {
       send({ command: "loadModule", type: "Chat", module_id: CHAT_ID,
         duration: 300000, audio: true, voice: "female", theme: "light", fontSize: "large", pause: "short", repeat: true });
+    }
+
+    function testChatImageShort() {
+      // Needs an image-type message in the module's data to actually see —
+      // just verifies the setting is picked up (0.5min = 30s instead of the 1min default).
+      send({ command: "loadModule", type: "Chat", module_id: CHAT_ID,
+        duration: 300000, audio: false, theme: "light", fontSize: "large", imageDuration: 0.5 });
     }
 
     // ── Zeit ──────────────────────────────────────────────────────────────

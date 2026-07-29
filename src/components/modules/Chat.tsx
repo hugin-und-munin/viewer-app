@@ -10,7 +10,6 @@ import { READING_RATE, SHORT_PAUSE_MS, LONG_PAUSE_MS } from '../../utils/ttsPaci
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const DISPLAY_MS = 5000
-const IMAGE_DISPLAY_MS = 60000
 const DEFAULT_RECENT_MESSAGE_COUNT = 10
 const FONT = "'Atkinson Hyperlegible', sans-serif"
 
@@ -188,6 +187,7 @@ function useMessagePlayback(params: {
   pauseMs: number
   repeat: boolean
   repeatGapMs: number
+  imageDurationMs: number
   bubbleRef: React.RefObject<HTMLDivElement | null>
   audioRef: React.RefObject<HTMLAudioElement | null>
   onShutdownRequest: ChatProps['onShutdownRequest']
@@ -203,6 +203,7 @@ function useMessagePlayback(params: {
     pauseMs,
     repeat,
     repeatGapMs,
+    imageDurationMs,
     bubbleRef,
     audioRef,
     onShutdownRequest,
@@ -218,6 +219,7 @@ function useMessagePlayback(params: {
   const pauseMsRef = useRef(pauseMs)
   const repeatRef = useRef(repeat)
   const repeatGapMsRef = useRef(repeatGapMs)
+  const imageDurationMsRef = useRef(imageDurationMs)
   useEffect(() => {
     rateRef.current = rate
   }, [rate])
@@ -233,6 +235,9 @@ function useMessagePlayback(params: {
   useEffect(() => {
     repeatGapMsRef.current = repeatGapMs
   }, [repeatGapMs])
+  useEffect(() => {
+    imageDurationMsRef.current = imageDurationMs
+  }, [imageDurationMs])
 
   const currentMediaId = messages[index]?.media_id
   const { url: mediaBlobUrl, settled: mediaBlobSettled } = useMediaBlobUrl(currentMediaId)
@@ -336,11 +341,11 @@ function useMessagePlayback(params: {
             rate: rateRef.current,
             voice: ttsVoiceRef.current,
             onEnd: () => {
-              timerRef.current = setTimeout(onEnd, IMAGE_DISPLAY_MS)
+              timerRef.current = setTimeout(onEnd, imageDurationMsRef.current)
             },
           })
         } else {
-          timerRef.current = setTimeout(advance, IMAGE_DISPLAY_MS)
+          timerRef.current = setTimeout(advance, imageDurationMsRef.current)
         }
       } else if (msg.type === 'audio') {
         const el = audioRef.current
@@ -822,6 +827,7 @@ function Chat({
   repeat = false,
   theme = 'light',
   recentMessageCount = DEFAULT_RECENT_MESSAGE_COUNT,
+  imageDuration = 1,
   onShutdownRequest,
   onModuleDone,
 }: ChatProps) {
@@ -832,6 +838,7 @@ function Chat({
   const rate = READING_RATE[readingSpeed] ?? 1.0
   const pauseMs = SHORT_PAUSE_MS[pause] ?? 0
   const repeatGapMs = LONG_PAUSE_MS[pause] ?? 0
+  const imageDurationMs = imageDuration * 60 * 1000
   const colors = CHAT_COLORS[theme]
 
   const { index, mediaBlobUrl } = useMessagePlayback({
@@ -844,6 +851,7 @@ function Chat({
     pauseMs,
     repeat,
     repeatGapMs,
+    imageDurationMs,
     bubbleRef,
     audioRef,
     onShutdownRequest,

@@ -17,6 +17,7 @@ export interface ChatProps extends BaseModule {
   repeat?: boolean
   theme?: 'light' | 'dark'
   recentMessageCount?: number
+  imageDuration?: number
 }
 
 export interface RoutineProps extends BaseModule {
