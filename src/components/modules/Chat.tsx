@@ -678,10 +678,29 @@ function TextMessage({
             bodyFontSize={sizes.body}
             colors={colors}
           />
-          <SenderAvatar
-            username={msg.username || 'Unbekannt'}
-            senderMediaId={msg.sender_media_id}
-          />
+          <Box
+            sx={{
+              flex: 1,
+              height: '100%',
+              containerType: 'size',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {/* Sized off the container's own box (not vw/vh) so it's exactly
+                half the row's width, but never taller than the row itself —
+                width and height both resolve to whichever is smaller. */}
+            <SenderAvatar
+              username={msg.username || 'Unbekannt'}
+              senderMediaId={msg.sender_media_id}
+              sx={{
+                width: 'min(100cqw, 100cqh)',
+                height: 'min(100cqw, 100cqh)',
+                fontSize: 'min(20cqw, 20cqh)',
+              }}
+            />
+          </Box>
         </Box>
       </Box>
     </Box>
@@ -771,6 +790,7 @@ function ImageMessage({
 }
 
 function AudioMessage({ msg, colors }: { msg: Message; colors: ThemeColors }) {
+  const name = msg.username || 'Unbekannt'
   return (
     <Box
       sx={{
@@ -778,7 +798,7 @@ function AudioMessage({ msg, colors }: { msg: Message; colors: ThemeColors }) {
         flexDirection: 'column',
         height: '100vh',
         overflow: 'hidden',
-        px: 6,
+        px: 'clamp(3rem, 7vw, 8rem)',
         bgcolor: colors.bg,
       }}
     >
@@ -794,7 +814,7 @@ function AudioMessage({ msg, colors }: { msg: Message; colors: ThemeColors }) {
           flexShrink: 0,
         }}
       >
-        Sprachnachricht von {msg.username || 'Unbekannt'}
+        Sprachnachricht von {name}
       </Typography>
       <Box
         sx={{
@@ -802,40 +822,64 @@ function AudioMessage({ msg, colors }: { msg: Message; colors: ThemeColors }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          overflow: 'hidden',
           pb: 6,
         }}
       >
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-          }}
-        >
+        {/* Avatar half mirrors the text message's bubble/avatar row (sized
+            off its own box via container query units) so the sender avatar
+            renders at the identical size in both. The icon keeps its
+            original fixed size, just centered in its own half now. */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', height: '100%' }}>
           <Box
             sx={{
-              color: colors.text,
-              flexShrink: 0,
-              width: 'clamp(12rem, 30vw, 24rem)',
-              height: 'clamp(12rem, 30vw, 24rem)',
+              flex: 1,
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
-            <svg
-              aria-hidden="true"
-              width="100%"
-              height="100%"
-              viewBox="0 0 24 24"
-              fill="currentColor"
+            <Box
+              sx={{
+                color: colors.text,
+                flexShrink: 0,
+                width: 'clamp(12rem, 30vw, 24rem)',
+                height: 'clamp(12rem, 30vw, 24rem)',
+              }}
             >
-              <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" />
-              <path d="M14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
-            </svg>
+              <svg
+                aria-hidden="true"
+                width="100%"
+                height="100%"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" />
+                <path d="M14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
+              </svg>
+            </Box>
           </Box>
-          <SenderAvatar
-            username={msg.username || 'Unbekannt'}
-            senderMediaId={msg.sender_media_id}
-          />
+          <Box
+            sx={{
+              flex: 1,
+              height: '100%',
+              containerType: 'size',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <SenderAvatar
+              username={name}
+              senderMediaId={msg.sender_media_id}
+              sx={{
+                width: 'min(100cqw, 100cqh)',
+                height: 'min(100cqw, 100cqh)',
+                fontSize: 'min(20cqw, 20cqh)',
+              }}
+            />
+          </Box>
         </Box>
       </Box>
     </Box>
