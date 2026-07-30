@@ -21,6 +21,18 @@ const PAST_ALPHA = 0.3
 const FUTURE_ALPHA = 0.6
 const PAST_TEXT = '#424242'
 
+// ─── Theme ────────────────────────────────────────────────────────────────────
+
+// Only the page chrome (background, headings, status text) switches with the
+// theme — appointment cards keep their own day-color-tinted look regardless,
+// same as Chat's message bubble staying light in both themes.
+type RoutineColors = { bg: string; text: string; textSecondary: string }
+
+const ROUTINE_COLORS: Record<'light' | 'dark', RoutineColors> = {
+  light: { bg: 'white', text: 'black', textSecondary: '#616161' },
+  dark: { bg: '#18181b', text: '#f4f4f5', textSecondary: '#a1a1aa' },
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Appointment {
@@ -431,7 +443,15 @@ function useTTS(
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function StatusScreen({ text, role = 'status' }: { text: string; role?: 'status' | 'alert' }) {
+function StatusScreen({
+  text,
+  colors,
+  role = 'status',
+}: {
+  text: string
+  colors: RoutineColors
+  role?: 'status' | 'alert'
+}) {
   return (
     <Box
       role={role}
@@ -441,9 +461,12 @@ function StatusScreen({ text, role = 'status' }: { text: string; role?: 'status'
         justifyContent: 'center',
         alignItems: 'center',
         height: '100vh',
+        bgcolor: colors.bg,
       }}
     >
-      <Typography sx={{ fontFamily: FONT, fontSize: '2rem' }}>{text}</Typography>
+      <Typography sx={{ fontFamily: FONT, fontSize: '2rem', color: colors.text }}>
+        {text}
+      </Typography>
     </Box>
   )
 }
@@ -602,10 +625,12 @@ function SimpleView({
   active,
   next,
   dayColor,
+  colors,
 }: {
   active: Appointment | undefined
   next: Appointment | undefined
   dayColor: string
+  colors: RoutineColors
 }) {
   const featured = active ?? next
   const isActive = !!active
@@ -617,7 +642,13 @@ function SimpleView({
       <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Typography
           role="status"
-          sx={{ fontFamily: FONT, fontSize: '2rem', color: 'grey.700', textAlign: 'center', px: 6 }}
+          sx={{
+            fontFamily: FONT,
+            fontSize: '2rem',
+            color: colors.textSecondary,
+            textAlign: 'center',
+            px: 6,
+          }}
         >
           Für heute sind keine weiteren Termine geplant.
         </Typography>
@@ -674,7 +705,9 @@ function Routine({
   pause = 'medium',
   repeat = false,
   mode = 'overview',
+  theme = 'light',
 }: RoutineProps) {
+  const colors = ROUTINE_COLORS[theme]
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000)
@@ -747,8 +780,8 @@ function Routine({
     })
   }, [activeIndex, cardSize, rowRef])
 
-  if (loading) return <StatusScreen text="Lade Termine..." />
-  if (error) return <StatusScreen text={`Fehler: ${error}`} role="alert" />
+  if (loading) return <StatusScreen text="Lade Termine..." colors={colors} />
+  if (error) return <StatusScreen text={`Fehler: ${error}`} colors={colors} role="alert" />
 
   return (
     <Box
@@ -757,6 +790,7 @@ function Routine({
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
+        bgcolor: colors.bg,
         outline: `${DAY_OUTLINE_WIDTH} solid ${DAY_OUTLINE_COLORS[now.getDay()]}`,
         outlineOffset: `-${DAY_OUTLINE_WIDTH}`,
         boxSizing: 'border-box',
@@ -785,7 +819,7 @@ function Routine({
               fontFamily: FONT,
               fontSize: '1.8rem',
               fontWeight: 400,
-              color: 'black',
+              color: colors.text,
               lineHeight: 1,
               m: 0,
             }}
@@ -799,7 +833,7 @@ function Routine({
             fontFamily: FONT,
             fontSize: '5rem',
             fontWeight: 700,
-            color: 'black',
+            color: colors.text,
             lineHeight: 1,
             m: 0,
           }}
@@ -816,7 +850,7 @@ function Routine({
               fontFamily: FONT,
               fontSize: '2rem',
               fontWeight: 400,
-              color: 'black',
+              color: colors.text,
               lineHeight: 1,
               m: 0,
             }}
@@ -831,6 +865,7 @@ function Routine({
           active={todayActiveAppointment}
           next={todayNextAppointment}
           dayColor={dayColor}
+          colors={colors}
         />
       ) : (
         <Box
@@ -852,7 +887,7 @@ function Routine({
           {visible.length === 0 ? (
             <Typography
               role="status"
-              sx={{ fontFamily: FONT, fontSize: '2rem', color: 'grey.700' }}
+              sx={{ fontFamily: FONT, fontSize: '2rem', color: colors.textSecondary }}
             >
               Keine Termine
             </Typography>

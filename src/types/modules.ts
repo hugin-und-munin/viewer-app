@@ -29,6 +29,7 @@ export interface RoutineProps extends BaseModule {
   pause?: 'short' | 'medium' | 'long'
   repeat?: boolean
   mode?: 'overview' | 'simple'
+  theme?: 'light' | 'dark'
 }
 
 export interface TimeProps extends BaseModule {
@@ -44,6 +45,7 @@ export interface TimeProps extends BaseModule {
   pause?: 'short' | 'medium' | 'long'
   repeat?: boolean
   timeAnnouncement?: 'natural' | 'exact'
+  theme?: 'light' | 'dark'
 }
 
 export type ModuleProps = ChatProps | RoutineProps | TimeProps

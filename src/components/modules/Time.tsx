@@ -12,6 +12,15 @@ import {
 
 const FONT = "'Atkinson Hyperlegible', sans-serif"
 
+// ─── Theme ────────────────────────────────────────────────────────────────────
+
+type TimeColors = { bg: string; text: string }
+
+const TIME_COLORS: Record<'light' | 'dark', TimeColors> = {
+  light: { bg: 'white', text: 'black' },
+  dark: { bg: '#18181b', text: '#f4f4f5' },
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 type TimeAnnouncement = 'natural' | 'exact'
@@ -54,13 +63,13 @@ function formatDate(date: Date): string {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function DateDisplay({ now }: { now: Date }) {
+function DateDisplay({ now, colors }: { now: Date; colors: TimeColors }) {
   return (
     <Typography
       sx={{
         fontFamily: FONT,
         fontSize: '2.2rem',
-        color: 'black',
+        color: colors.text,
         mt: 3,
         letterSpacing: '0.02em',
       }}
@@ -74,10 +83,12 @@ function DigitalClock({
   now,
   format = 'HH:mm',
   showSeconds = false,
+  colors,
 }: {
   now: Date
   format?: string
   showSeconds?: boolean
+  colors: TimeColors
 }) {
   const use12h = format === 'hh:mm a'
   const timeStr = now.toLocaleTimeString('de-DE', {
@@ -93,7 +104,7 @@ function DigitalClock({
         fontFamily: FONT,
         fontSize: '14rem',
         fontWeight: 700,
-        color: 'black',
+        color: colors.text,
         lineHeight: 1,
         letterSpacing: '0.05em',
         fontVariantNumeric: 'tabular-nums',
@@ -109,7 +120,15 @@ function handPoint(cx: number, cy: number, length: number, angleDeg: number) {
   return { x: cx + length * Math.cos(rad), y: cy + length * Math.sin(rad) }
 }
 
-function AnalogClock({ now, showSeconds = false }: { now: Date; showSeconds?: boolean }) {
+function AnalogClock({
+  now,
+  showSeconds = false,
+  colors,
+}: {
+  now: Date
+  showSeconds?: boolean
+  colors: TimeColors
+}) {
   const h = now.getHours() % 12
   const m = now.getMinutes()
   const s = now.getSeconds()
@@ -138,7 +157,7 @@ function AnalogClock({ now, showSeconds = false }: { now: Date; showSeconds?: bo
         style={{ width: '100%', height: '100%' }}
       >
         {/* Face */}
-        <circle cx={cx} cy={cy} r={90} fill="white" stroke="black" strokeWidth={4} />
+        <circle cx={cx} cy={cy} r={90} fill={colors.bg} stroke={colors.text} strokeWidth={4} />
 
         {/* Hour & minute markers */}
         {Array.from({ length: 60 }, (_, i) => {
@@ -154,7 +173,7 @@ function AnalogClock({ now, showSeconds = false }: { now: Date; showSeconds?: bo
               y1={p1.y}
               x2={p2.x}
               y2={p2.y}
-              stroke="black"
+              stroke={colors.text}
               strokeWidth={isHour ? 2.5 : 1}
               strokeLinecap="round"
             />
@@ -167,7 +186,7 @@ function AnalogClock({ now, showSeconds = false }: { now: Date; showSeconds?: bo
           y1={cy}
           x2={hour.x}
           y2={hour.y}
-          stroke="black"
+          stroke={colors.text}
           strokeWidth={7}
           strokeLinecap="round"
         />
@@ -178,7 +197,7 @@ function AnalogClock({ now, showSeconds = false }: { now: Date; showSeconds?: bo
           y1={cy}
           x2={minute.x}
           y2={minute.y}
-          stroke="black"
+          stroke={colors.text}
           strokeWidth={4}
           strokeLinecap="round"
         />
@@ -197,7 +216,7 @@ function AnalogClock({ now, showSeconds = false }: { now: Date; showSeconds?: bo
         )}
 
         {/* Center dot */}
-        <circle cx={cx} cy={cy} r={5} fill="black" />
+        <circle cx={cx} cy={cy} r={5} fill={colors.text} />
         {showSeconds && <circle cx={cx} cy={cy} r={3} fill="#dc2626" />}
       </svg>
     </Box>
@@ -219,7 +238,9 @@ function Time({
   pause = 'medium',
   repeat = false,
   timeAnnouncement = 'natural',
+  theme = 'light',
 }: TimeProps) {
+  const colors = TIME_COLORS[theme]
   const rate = READING_RATE[readingSpeed] ?? 1.0
   const repeatGapMs = LONG_PAUSE_MS[pause] ?? 0
   const [now, setNow] = useState(new Date())
@@ -288,17 +309,18 @@ function Time({
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
+        bgcolor: colors.bg,
         outline: `${DAY_OUTLINE_WIDTH} solid ${DAY_OUTLINE_COLORS[now.getDay()]}`,
         outlineOffset: `-${DAY_OUTLINE_WIDTH}`,
         boxSizing: 'border-box',
       }}
     >
       {clockType === 'analog' ? (
-        <AnalogClock now={now} showSeconds={showSeconds} />
+        <AnalogClock now={now} showSeconds={showSeconds} colors={colors} />
       ) : (
-        <DigitalClock now={now} format={format} showSeconds={showSeconds} />
+        <DigitalClock now={now} format={format} showSeconds={showSeconds} colors={colors} />
       )}
-      {showDate && <DateDisplay now={now} />}
+      {showDate && <DateDisplay now={now} colors={colors} />}
     </Box>
   )
 }
