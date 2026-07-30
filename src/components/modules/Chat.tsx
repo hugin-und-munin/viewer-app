@@ -14,9 +14,9 @@ const DEFAULT_RECENT_MESSAGE_COUNT = 10
 const FONT = "'Atkinson Hyperlegible', sans-serif"
 
 const FONT_SIZE = {
-  small: { header: '2rem', body: '1.8rem', bubbleMaxH: 'calc(100vh - 200px)' },
-  medium: { header: '3rem', body: '2.5rem', bubbleMaxH: 'calc(100vh - 220px)' },
-  large: { header: '4rem', body: '3.2rem', bubbleMaxH: 'calc(100vh - 260px)' },
+  small: { header: '2rem', body: '1.8rem' },
+  medium: { header: '3rem', body: '2.5rem' },
+  large: { header: '4rem', body: '3.2rem' },
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -164,15 +164,41 @@ function speakMessage(
   pauseMs: number,
 ) {
   const prefix = `Nachricht von ${msg.username || 'Unbekannt'}.`
+  let contentStartSec = 0
   speak(`${prefix}${PAUSE}${msg.content}`, {
     rate,
     voice,
     pauseMs,
     onEnd,
-    onProgress: (fraction) => {
+    // Exact second where the content segment (after "Nachricht von X." +
+    // the pause) starts in the synthesized clip — reported by the main
+    // process, which actually knows each segment's real duration, rather
+    // than estimated on this end.
+    onSegments: (starts) => {
+      contentStartSec = starts[1] ?? 0
+    },
+    onProgress: (fraction, durationSec) => {
       const el = bubbleRef.current
       if (!el || el.scrollHeight <= el.clientHeight) return
-      el.scrollTop = fraction * (el.scrollHeight - el.clientHeight)
+      // The synthesized clip is one continuous recording of prefix + pause +
+      // content, but the bubble only shows `content` — so raw playback
+      // fraction runs ahead of what's actually visible; rescale it to the
+      // content-only sub-range before mapping it onto the scrollbar.
+      const contentDurationSec = durationSec - contentStartSec
+      if (contentDurationSec <= 0) return
+      const elapsedSec = fraction * durationSec
+      const contentFraction = Math.min(
+        Math.max((elapsedSec - contentStartSec) / contentDurationSec, 0),
+        1,
+      )
+      // Anchor the currently-read line ~30% down from the bubble's top
+      // instead of flush against it — mapping fraction straight onto
+      // scrollTop puts the active line right at the top edge early on,
+      // so it gets scrolled out of view the moment it's actually spoken.
+      const scrollRange = el.scrollHeight - el.clientHeight
+      const readingY = contentFraction * el.scrollHeight
+      const target = readingY - 0.3 * el.clientHeight
+      el.scrollTop = Math.min(Math.max(target, 0), scrollRange)
     },
   })
 }
@@ -353,7 +379,10 @@ function useMessagePlayback(params: {
 
         let audioRepeated = false
 
-        function playAudio(onDone: () => void) {
+        // Arrow-function consts (not hoisted `function` declarations) so TS
+        // retains the `el` non-null narrowing from the guard above inside
+        // these closures.
+        const playAudio = (onDone: () => void) => {
           const url = mediaBlobUrlRef.current
           if (!url) {
             onDone()
@@ -369,7 +398,7 @@ function useMessagePlayback(params: {
           el.load()
         }
 
-        function handlePlaybackEnd() {
+        const handlePlaybackEnd = () => {
           if (interruptDoneRef.current) {
             interruptDoneRef.current()
             interruptDoneRef.current = null
@@ -383,7 +412,7 @@ function useMessagePlayback(params: {
           }
         }
 
-        function doPlayback() {
+        const doPlayback = () => {
           if (audio) {
             speak(`Sprachnachricht von ${name}.`, {
               rate: rateRef.current,
@@ -532,18 +561,16 @@ function ChatBubble({
   content,
   bubbleRef,
   bodyFontSize = '2.5rem',
-  maxHeight = 'calc(100vh - 220px)',
   colors,
 }: {
   content: string
   bubbleRef: React.RefObject<HTMLDivElement | null>
   bodyFontSize?: string
-  maxHeight?: string
   colors: ThemeColors
 }) {
   const isDark = colors.bubbleBorder === colors.bubbleBg
   return (
-    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ flex: 1, maxHeight: '100%', display: 'flex', flexDirection: 'column' }}>
       <Box
         ref={bubbleRef}
         sx={{
@@ -552,8 +579,9 @@ function ChatBubble({
           border: `4px solid ${colors.bubbleBorder}`,
           borderRadius: '24px',
           p: 5,
+          flex: 1,
+          minHeight: 0,
           overflowY: 'auto',
-          maxHeight,
           scrollbarWidth: 'none',
           '&::-webkit-scrollbar': { display: 'none' },
           boxSizing: 'border-box',
@@ -643,12 +671,11 @@ function TextMessage({
           pb: 6,
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', height: '100%' }}>
           <ChatBubble
             content={msg.content}
             bubbleRef={bubbleRef}
             bodyFontSize={sizes.body}
-            maxHeight={sizes.bubbleMaxH}
             colors={colors}
           />
           <SenderAvatar

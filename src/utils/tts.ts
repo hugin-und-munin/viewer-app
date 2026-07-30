@@ -11,7 +11,8 @@ export interface TTSOptions {
   voice?: TtsVoice
   pauseMs?: number // silence spliced in wherever `text` contains PAUSE
   onEnd?: () => void
-  onProgress?: (fraction: number) => void // 0..1 playback progress, ~replaces word-boundary events
+  onProgress?: (fraction: number, durationSec: number) => void // fires every animation frame during playback: 0..1 progress + total clip length, ~replaces word-boundary events
+  onSegments?: (segmentStartsSec: number[]) => void // fires once, before playback starts — start time of each PAUSE/PAUSE_SHORT-separated segment within the synthesized clip
 }
 
 // Marks a pause point in text passed to speak(). Piper has no SSML/pause
@@ -32,18 +33,50 @@ export const PAUSE_SHORT = '⁢'
 // centrally here so it covers dates anywhere they show up (clock, routine
 // descriptions, chat messages), not just one module.
 const GERMAN_MONTHS = [
-  'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
-  'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
+  'Januar',
+  'Februar',
+  'März',
+  'April',
+  'Mai',
+  'Juni',
+  'Juli',
+  'August',
+  'September',
+  'Oktober',
+  'November',
+  'Dezember',
 ]
 const ORDINAL_DAY_WORDS: Record<number, string> = {
-  1: 'erste', 2: 'zweite', 3: 'dritte', 4: 'vierte', 5: 'fünfte',
-  6: 'sechste', 7: 'siebte', 8: 'achte', 9: 'neunte', 10: 'zehnte',
-  11: 'elfte', 12: 'zwölfte', 13: 'dreizehnte', 14: 'vierzehnte', 15: 'fünfzehnte',
-  16: 'sechzehnte', 17: 'siebzehnte', 18: 'achtzehnte', 19: 'neunzehnte',
+  1: 'erste',
+  2: 'zweite',
+  3: 'dritte',
+  4: 'vierte',
+  5: 'fünfte',
+  6: 'sechste',
+  7: 'siebte',
+  8: 'achte',
+  9: 'neunte',
+  10: 'zehnte',
+  11: 'elfte',
+  12: 'zwölfte',
+  13: 'dreizehnte',
+  14: 'vierzehnte',
+  15: 'fünfzehnte',
+  16: 'sechzehnte',
+  17: 'siebzehnte',
+  18: 'achtzehnte',
+  19: 'neunzehnte',
 }
 const CARDINAL_DAY_UNITS: Record<number, string> = {
-  1: 'ein', 2: 'zwei', 3: 'drei', 4: 'vier', 5: 'fünf',
-  6: 'sechs', 7: 'sieben', 8: 'acht', 9: 'neun',
+  1: 'ein',
+  2: 'zwei',
+  3: 'drei',
+  4: 'vier',
+  5: 'fünf',
+  6: 'sechs',
+  7: 'sieben',
+  8: 'acht',
+  9: 'neun',
 }
 
 function ordinalDayWord(day: number): string {
@@ -65,13 +98,17 @@ function normalizeSpokenDates(text: string): string {
 let currentAudio: HTMLAudioElement | null = null
 let currentAudioUrl: string | null = null
 let currentToken = 0
+let currentRafId: number | null = null
 
 function teardownCurrent(): void {
+  if (currentRafId !== null) {
+    cancelAnimationFrame(currentRafId)
+    currentRafId = null
+  }
   if (currentAudio) {
     currentAudio.pause()
     currentAudio.onended = null
     currentAudio.onerror = null
-    currentAudio.ontimeupdate = null
     currentAudio = null
   }
   if (currentAudioUrl) {
@@ -93,13 +130,14 @@ export async function speak(text: string, options: TTSOptions = {}): Promise<voi
   const normalizedText = normalizeSpokenDates(text)
 
   let base64Wav: string
+  let segmentStartsSec: number[]
   try {
-    base64Wav = await window.electronAPI!.synthesizeSpeech(
+    ;({ base64: base64Wav, segmentStartsSec } = await window.electronAPI!.synthesizeSpeech(
       normalizedText,
       voice,
       lengthScale,
       options.pauseMs ?? 0,
-    )
+    ))
   } catch (err) {
     // A newer speak() or stop() call superseded this one while it was
     // synthesizing — piperTts kills the in-flight process, which rejects
@@ -119,6 +157,8 @@ export async function speak(text: string, options: TTSOptions = {}): Promise<voi
   currentAudio = audio
   currentAudioUrl = url
 
+  options.onSegments?.(segmentStartsSec)
+
   audio.onended = () => {
     if (currentAudio === audio) teardownCurrent()
     options.onEnd?.()
@@ -129,9 +169,16 @@ export async function speak(text: string, options: TTSOptions = {}): Promise<voi
     options.onEnd?.()
   }
   if (options.onProgress) {
-    audio.ontimeupdate = () => {
-      if (audio.duration > 0) options.onProgress!(audio.currentTime / audio.duration)
+    const onProgress = options.onProgress
+    // audio.ontimeupdate only fires a few times per second, which reads as
+    // visibly jerky for anything driven off it (e.g. Chat's read-along
+    // scroll) — polling on rAF instead updates every frame for smooth motion.
+    const tick = () => {
+      if (currentAudio !== audio) return // superseded — drop silently
+      if (audio.duration > 0) onProgress(audio.currentTime / audio.duration, audio.duration)
+      currentRafId = audio.paused || audio.ended ? null : requestAnimationFrame(tick)
     }
+    currentRafId = requestAnimationFrame(tick)
   }
 
   audio.play().catch(() => {

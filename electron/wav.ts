@@ -63,3 +63,8 @@ export function silenceBuffer(fmt: WavFormat, durationMs: number): Buffer {
   const numSamples = Math.round((fmt.sampleRate * durationMs) / 1000);
   return Buffer.alloc(numSamples * bytesPerSample * fmt.numChannels);
 }
+
+export function pcmDurationSec(data: Buffer, fmt: WavFormat): number {
+  const blockAlign = (fmt.numChannels * fmt.bitsPerSample) / 8;
+  return data.length / (fmt.sampleRate * blockAlign);
+}

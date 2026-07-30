@@ -20,7 +20,7 @@ declare global {
       voice: 'male' | 'female',
       lengthScale: number,
       pauseMs: number,
-    ) => Promise<string>
+    ) => Promise<{ base64: string; segmentStartsSec: number[] }>
     onControl: (callback: (data: unknown) => void) => void
     offControl: (callback: (data: unknown) => void) => void
   }

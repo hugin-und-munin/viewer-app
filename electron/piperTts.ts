@@ -4,7 +4,7 @@ import { randomUUID } from "crypto";
 import path from "path";
 import os from "os";
 import log from "electron-log/main";
-import { parseWav, buildWav, silenceBuffer } from "./wav";
+import { parseWav, buildWav, silenceBuffer, pcmDurationSec } from "./wav";
 
 // Runs Piper (https://github.com/rhasspy/piper), a local neural TTS engine,
 // as a one-shot child process per utterance. Piper writes the WAV to a real
@@ -157,12 +157,24 @@ function splitIntoSegments(text: string, pauseMs: number): Segment[] {
   return segments;
 }
 
+export interface SynthesisResult {
+  wav: Buffer;
+  // Seconds into the final clip where each PAUSE/PAUSE_SHORT-separated
+  // segment begins (index 0 is always 0) — lets a caller that concatenated
+  // several pieces of text (e.g. Chat's "Nachricht von X." + message body)
+  // find exactly where its own segment starts speaking, instead of
+  // estimating it from character counts. Only meaningful when segments were
+  // actually spliced with real silence; an unspliced clip reports a single
+  // [0] since no per-segment boundary was ever measured.
+  segmentStartsSec: number[];
+}
+
 export async function synthesizeSpeech(
   text: string,
   voice: PiperVoice,
   lengthScale: number,
   pauseMs = 0,
-): Promise<Buffer> {
+): Promise<SynthesisResult> {
   const exe = process.env.PIPER_EXE || DEFAULT_EXE;
   const model = modelPathFor(voice);
   const segments = splitIntoSegments(text, pauseMs);
@@ -174,7 +186,7 @@ export async function synthesizeSpeech(
     const joined = segments.map((s) => s.text).join(" ") || text;
     const wav = await synthesizeOneSegment(joined, exe, model, lengthScale);
     attenuateWavInPlace(wav, HEADROOM_GAIN);
-    return wav;
+    return { wav, segmentStartsSec: [0] };
   }
 
   // Synthesize every segment in parallel — much lower total latency than
@@ -189,17 +201,22 @@ export async function synthesizeSpeech(
   const fmt = parsed[0].fmt;
 
   const pieces: Buffer[] = [];
+  const segmentStartsSec: number[] = [];
+  let elapsedSec = 0;
   parsed.forEach((p, i) => {
+    segmentStartsSec.push(elapsedSec);
     pieces.push(p.data);
+    elapsedSec += pcmDurationSec(p.data, fmt);
     const gapMs = segments[i].pauseAfterMs;
     if (i < parsed.length - 1 && gapMs > 0) {
       pieces.push(silenceBuffer(fmt, gapMs));
+      elapsedSec += gapMs / 1000;
     }
   });
 
   const combined = buildWav(fmt, Buffer.concat(pieces));
   attenuateWavInPlace(combined, HEADROOM_GAIN);
-  return combined;
+  return { wav: combined, segmentStartsSec };
 }
 
 export async function synthesizeSpeechBase64(
@@ -207,10 +224,10 @@ export async function synthesizeSpeechBase64(
   voice: PiperVoice,
   lengthScale: number,
   pauseMs = 0,
-): Promise<string> {
+): Promise<{ base64: string; segmentStartsSec: number[] }> {
   try {
-    const wav = await synthesizeSpeech(text, voice, lengthScale, pauseMs);
-    return wav.toString("base64");
+    const { wav, segmentStartsSec } = await synthesizeSpeech(text, voice, lengthScale, pauseMs);
+    return { base64: wav.toString("base64"), segmentStartsSec };
   } catch (err) {
     if (!(err instanceof Error) || err.message !== "piper synthesis superseded") {
       log.error("[tts] synthesis failed:", err);

@@ -90,7 +90,13 @@ function registerCacheHandlers() {
 function registerTtsHandlers() {
   ipcMain.handle(
     "tts:synthesize",
-    (_event, text: string, voice: PiperVoice, lengthScale: number, pauseMs: number): Promise<string> =>
+    (
+      _event,
+      text: string,
+      voice: PiperVoice,
+      lengthScale: number,
+      pauseMs: number,
+    ): Promise<{ base64: string; segmentStartsSec: number[] }> =>
       synthesizeSpeechBase64(text, voice, lengthScale, pauseMs),
   );
 }
