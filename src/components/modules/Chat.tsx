@@ -13,6 +13,28 @@ const DISPLAY_MS = 5000
 const DEFAULT_RECENT_MESSAGE_COUNT = 10
 const FONT = "'Atkinson Hyperlegible', sans-serif"
 
+// An image message's otherwise-unused `content` field doubles as an optional
+// spoken caption — no backend/schema change needed. Plain content is caption
+// text (spoken via TTS); content prefixed with this invisible marker instead
+// references a separately-uploaded voice-caption recording's media ID (same
+// "invisible Unicode marker" idiom as PAUSE/PAUSE_SHORT in utils/tts.ts).
+// content-app must encode with this exact character.
+const VOICE_CAPTION_PREFIX = '⁡' // Invisible Function Application
+
+interface ImageCaption {
+  text?: string
+  voiceMediaId?: string
+}
+
+function parseImageCaption(content: string): ImageCaption | undefined {
+  if (!content) return undefined
+  if (content.startsWith(VOICE_CAPTION_PREFIX)) {
+    const voiceMediaId = content.slice(VOICE_CAPTION_PREFIX.length)
+    return voiceMediaId ? { voiceMediaId } : undefined
+  }
+  return { text: content }
+}
+
 const FONT_SIZE = {
   small: { header: '2rem', body: '1.8rem' },
   medium: { header: '3rem', body: '2.5rem' },
@@ -228,6 +250,27 @@ function autoScrollBubble(el: HTMLDivElement, durationMs: number): () => void {
   return () => cancelAnimationFrame(rafId)
 }
 
+// Plays a blob URL through a shared <audio> element — used both for
+// recorded voice messages and recorded voice captions on images.
+function playAudioElement(
+  el: HTMLAudioElement | null,
+  url: string | null,
+  onDone: () => void,
+): void {
+  if (!el || !url) {
+    onDone()
+    return
+  }
+  el.src = url
+  el.currentTime = 0
+  el.onended = onDone
+  el.oncanplay = () => {
+    el.oncanplay = null
+    el.play().catch(onDone)
+  }
+  el.load()
+}
+
 // A flat DISPLAY_MS is fine for short text, but a long message needs
 // proportionally more time to actually read — same idea as TTS taking longer
 // to speak more words. ~180 wpm is a comfortably slow, accessible pace;
@@ -304,11 +347,21 @@ function useMessagePlayback(params: {
     imageDurationMsRef.current = imageDurationMs
   }, [imageDurationMs])
 
-  const currentMediaId = messages[index]?.media_id
+  const currentMsg = messages[index]
+  const currentMediaId = currentMsg?.media_id
   const { url: mediaBlobUrl, settled: mediaBlobSettled } = useMediaBlobUrl(currentMediaId)
+
+  const currentCaption =
+    currentMsg?.type === 'image' ? parseImageCaption(currentMsg.content) : undefined
+  const { url: captionBlobUrl, settled: captionBlobSettled } = useMediaBlobUrl(
+    currentCaption?.voiceMediaId,
+  )
 
   const mediaBlobUrlRef = useRef<string | null>(null)
   const triggerAudioRef = useRef<(() => void) | null>(null)
+  const captionBlobUrlRef = useRef<string | null>(null)
+  const captionBlobSettledRef = useRef(false)
+  const triggerCaptionRef = useRef<(() => void) | null>(null)
 
   useEffect(() => {
     mediaBlobUrlRef.current = mediaBlobUrl
@@ -318,6 +371,16 @@ function useMessagePlayback(params: {
       trigger()
     }
   }, [mediaBlobUrl])
+
+  useEffect(() => {
+    captionBlobUrlRef.current = captionBlobUrl
+    captionBlobSettledRef.current = captionBlobSettled
+    if ((captionBlobUrl || captionBlobSettled) && triggerCaptionRef.current) {
+      const trigger = triggerCaptionRef.current
+      triggerCaptionRef.current = null
+      trigger()
+    }
+  }, [captionBlobUrl, captionBlobSettled])
 
   useEffect(() => {
     if (!mediaBlobSettled || loading || messages.length === 0 || index >= messages.length) return
@@ -404,41 +467,85 @@ function useMessagePlayback(params: {
           timerRef.current = setTimeout(advance, readingMs)
         }
       } else if (msg.type === 'image') {
-        if (audio) {
-          speak(`Bild von ${name}.`, {
-            rate: rateRef.current,
-            voice: ttsVoiceRef.current,
-            onEnd: () => {
-              timerRef.current = setTimeout(onEnd, imageDurationMsRef.current)
-            },
-          })
-        } else {
-          timerRef.current = setTimeout(advance, imageDurationMsRef.current)
+        const caption = currentCaption
+        const hasCaption = !!(caption?.text || caption?.voiceMediaId)
+
+        let captionRepeated = false
+        const playCaption = (onDone: () => void) => {
+          if (caption?.voiceMediaId) {
+            playAudioElement(audioRef.current, captionBlobUrlRef.current, onDone)
+          } else if (caption?.text) {
+            speak(caption.text, {
+              rate: rateRef.current,
+              voice: ttsVoiceRef.current,
+              onEnd: onDone,
+            })
+          } else {
+            onDone()
+          }
         }
+
+        // The caption (text spoken via TTS, or a recorded voice clip) is the
+        // sender's own content, not generic chrome like "Bild von X." — it
+        // always plays, even with the module's Audioausgabe off.
+        const startCaption = (onDone: () => void) => {
+          if (
+            caption?.voiceMediaId &&
+            !captionBlobUrlRef.current &&
+            !captionBlobSettledRef.current
+          ) {
+            triggerCaptionRef.current = () => playCaption(onDone)
+          } else {
+            playCaption(onDone)
+          }
+        }
+
+        // Re-runs the whole thing on repeat — "Bild von X." announcement (if
+        // audio) followed by the caption — same as how Sprachnachricht
+        // re-announces itself on each repeat, not just the recording alone.
+        const playImageSequence = () => {
+          if (audio) {
+            speak(`Bild von ${name}.`, {
+              rate: rateRef.current,
+              voice: ttsVoiceRef.current,
+              onEnd: () => {
+                if (hasCaption) {
+                  startCaption(handleCaptionEnd)
+                } else {
+                  timerRef.current = setTimeout(onEnd, imageDurationMsRef.current)
+                }
+              },
+            })
+          } else if (hasCaption) {
+            startCaption(handleCaptionEnd)
+          } else {
+            timerRef.current = setTimeout(advance, imageDurationMsRef.current)
+          }
+        }
+
+        const handleCaptionEnd = () => {
+          if (interruptDoneRef.current) {
+            interruptDoneRef.current()
+            interruptDoneRef.current = null
+            return
+          }
+          if (repeatRef.current && !captionRepeated) {
+            captionRepeated = true
+            timerRef.current = setTimeout(playImageSequence, repeatGapMsRef.current)
+          } else {
+            timerRef.current = setTimeout(onEnd, imageDurationMsRef.current)
+          }
+        }
+
+        playImageSequence()
       } else if (msg.type === 'audio') {
         const el = audioRef.current
         if (!el) return
 
         let audioRepeated = false
 
-        // Arrow-function consts (not hoisted `function` declarations) so TS
-        // retains the `el` non-null narrowing from the guard above inside
-        // these closures.
-        const playAudio = (onDone: () => void) => {
-          const url = mediaBlobUrlRef.current
-          if (!url) {
-            onDone()
-            return
-          }
-          el.src = url
-          el.currentTime = 0
-          el.onended = onDone
-          el.oncanplay = () => {
-            el.oncanplay = null
-            el.play().catch(onDone)
-          }
-          el.load()
-        }
+        const playAudio = (onDone: () => void) =>
+          playAudioElement(el, mediaBlobUrlRef.current, onDone)
 
         const handlePlaybackEnd = () => {
           if (interruptDoneRef.current) {
@@ -446,7 +553,9 @@ function useMessagePlayback(params: {
             interruptDoneRef.current = null
             return
           }
-          if (repeatRef.current && !audioRepeated) {
+          // Repeat only makes sense paired with the spoken announcement —
+          // without it (audio off), the recording just played once is enough.
+          if (audio && repeatRef.current && !audioRepeated) {
             audioRepeated = true
             timerRef.current = setTimeout(doPlayback, repeatGapMsRef.current)
           } else {
@@ -508,7 +617,17 @@ function useMessagePlayback(params: {
       }
       stop()
     }
-  }, [index, messages, loading, audio, bubbleRef, audioRef, interruptDoneRef, moduleId])
+  }, [
+    index,
+    messages,
+    loading,
+    audio,
+    bubbleRef,
+    audioRef,
+    interruptDoneRef,
+    moduleId,
+    currentCaption,
+  ])
 
   return { index, mediaBlobUrl }
 }
@@ -636,6 +755,8 @@ function ChatBubble({
             fontSize: bodyFontSize,
             lineHeight: 1.5,
             textAlign: 'left',
+            whiteSpace: 'pre-wrap',
+            overflowWrap: 'break-word',
           }}
         >
           {content}

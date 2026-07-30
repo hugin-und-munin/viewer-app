@@ -124,6 +124,10 @@
       <div class="row">
         <button onclick="testTimeNoSound()">Ohne Signalton</button>
       </div>
+      <div class="row">
+        <button onclick="testTimeDark()">Dark Mode</button>
+        <button onclick="testTimeDarkAnalog()">Dark Mode Analog</button>
+      </div>
     </div>
 
     <div class="section">
@@ -142,6 +146,10 @@
       </div>
       <div class="row">
         <button onclick="testRoutineNoSound()">Ohne Signalton</button>
+      </div>
+      <div class="row">
+        <button onclick="testRoutineDark()">Dark Mode</button>
+        <button onclick="testRoutineDarkSimple()">Dark Mode Einfach</button>
       </div>
     </div>
 
@@ -326,6 +334,18 @@
         audio: false, transitionSound: false });
     }
 
+    function testTimeDark() {
+      send({ command: "loadModule", type: "Time", module_id: TIME_ID,
+        duration: 300000, format: "HH:mm", showSeconds: false, showDate: true, interval: 30,
+        audio: false, clockType: "digital", theme: "dark" });
+    }
+
+    function testTimeDarkAnalog() {
+      send({ command: "loadModule", type: "Time", module_id: TIME_ID,
+        duration: 300000, showSeconds: true, showDate: true, interval: 30,
+        audio: false, clockType: "analog", theme: "dark" });
+    }
+
     // ── Routine ───────────────────────────────────────────────────────────
 
     function testRoutineStill() {
@@ -362,6 +382,16 @@
     function testRoutineNoSound() {
       send({ command: "loadModule", type: "Routine", module_id: ROUTINE_ID,
         duration: 600000, audio: false, transitionSound: false });
+    }
+
+    function testRoutineDark() {
+      send({ command: "loadModule", type: "Routine", module_id: ROUTINE_ID,
+        duration: 600000, audio: false, mode: "overview", theme: "dark" });
+    }
+
+    function testRoutineDarkSimple() {
+      send({ command: "loadModule", type: "Routine", module_id: ROUTINE_ID,
+        duration: 600000, audio: false, mode: "simple", theme: "dark" });
     }
 
     // ── Custom ────────────────────────────────────────────────────────────
