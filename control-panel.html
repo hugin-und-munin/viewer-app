@@ -95,6 +95,9 @@
       <div class="row">
         <button onclick="testChatImageShort()">Bilddauer 0.5min</button>
       </div>
+      <div class="row">
+        <button onclick="testChatNoSound()">Ohne Signalton</button>
+      </div>
     </div>
 
     <div class="section">
@@ -118,6 +121,9 @@
         <button onclick="testTimeNatural()">Zeitansage Natürlich</button>
         <button onclick="testTimeExact()">Zeitansage Genau</button>
       </div>
+      <div class="row">
+        <button onclick="testTimeNoSound()">Ohne Signalton</button>
+      </div>
     </div>
 
     <div class="section">
@@ -133,6 +139,9 @@
         <button onclick="testRoutinePauseShort()">Pause Kurz (schnell testen)</button>
         <button onclick="testRoutinePauseLong()">Pause Lang</button>
         <button onclick="testRoutineRepeat()">Wiederholung</button>
+      </div>
+      <div class="row">
+        <button onclick="testRoutineNoSound()">Ohne Signalton</button>
       </div>
     </div>
 
@@ -238,6 +247,13 @@
         duration: 300000, audio: false, theme: "light", fontSize: "large", imageDuration: 0.5 });
     }
 
+    function testChatNoSound() {
+      // Every other Chat button omits transitionSound, so the default (on)
+      // already gets exercised by them — this checks the explicit off path.
+      send({ command: "loadModule", type: "Chat", module_id: CHAT_ID,
+        duration: 300000, audio: false, theme: "light", fontSize: "large", transitionSound: false });
+    }
+
     // ── Zeit ──────────────────────────────────────────────────────────────
 
     function testTime24() {
@@ -304,6 +320,12 @@
         audio: true, timeAnnouncement: "exact" });
     }
 
+    function testTimeNoSound() {
+      send({ command: "loadModule", type: "Time", module_id: TIME_ID,
+        duration: 300000, format: "HH:mm", showSeconds: false, showDate: true, interval: 30,
+        audio: false, transitionSound: false });
+    }
+
     // ── Routine ───────────────────────────────────────────────────────────
 
     function testRoutineStill() {
@@ -335,6 +357,11 @@
     function testRoutineRepeat() {
       send({ command: "loadModule", type: "Routine", module_id: ROUTINE_ID,
         duration: 600000, audio: true, voice: "female", pause: "short", repeat: true });
+    }
+
+    function testRoutineNoSound() {
+      send({ command: "loadModule", type: "Routine", module_id: ROUTINE_ID,
+        duration: 600000, audio: false, transitionSound: false });
     }
 
     // ── Custom ────────────────────────────────────────────────────────────

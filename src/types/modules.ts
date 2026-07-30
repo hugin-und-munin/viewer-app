@@ -3,6 +3,7 @@ export interface BaseModule {
   module_id: string
   duration: number
   interval?: 15 | 30 | 60
+  transitionSound?: boolean
   onShutdownRequest?: (trigger: () => void) => void
   onModuleDone?: () => void
 }

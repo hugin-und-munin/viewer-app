@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Module } from '../core/moduleDisplayManager'
 import { onModuleChange, offModuleChange } from '../core/moduleDisplayManager'
 import ModuleErrorBoundary from './ModuleErrorBoundary'
+import { playTransitionSound } from '../utils/transitionSound'
 import logo from '../assets/logo.png'
 import './ModuleRenderer.css'
 
@@ -42,6 +43,15 @@ function ModuleRenderer() {
     onModuleChange(setModuleData)
     return () => offModuleChange(setModuleData)
   }, [])
+
+  // instanceId changes on every showModule() call, even repeated loads of
+  // the same module type — so this fires on every new mount, matching the
+  // per-module "Signalton" setting rather than only on a type switch.
+  useEffect(() => {
+    if (moduleData && moduleData.props.transitionSound !== false) {
+      playTransitionSound()
+    }
+  }, [moduleData])
 
   if (!moduleData) return <IdleScreen />
 
