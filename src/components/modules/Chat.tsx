@@ -155,6 +155,19 @@ function useShutdownRequest(
   return interruptDoneRef
 }
 
+// Scrolls so the current reading position sits ~30% down from the bubble's
+// top instead of flush against it — anchoring it flush would put the active
+// line right at the scroll boundary, so it'd reach the edge and get pushed
+// out of view sooner than it should. Shared by both the audio-driven scroll
+// (speakMessage) and the silent auto-scroll (autoScrollBubble) so the two
+// modes move identically.
+function scrollToReadingPosition(el: HTMLDivElement, fraction: number): void {
+  const scrollRange = el.scrollHeight - el.clientHeight
+  const readingY = fraction * el.scrollHeight
+  const target = readingY - 0.3 * el.clientHeight
+  el.scrollTop = Math.min(Math.max(target, 0), scrollRange)
+}
+
 function speakMessage(
   msg: Message,
   onEnd: () => void,
@@ -191,16 +204,41 @@ function speakMessage(
         Math.max((elapsedSec - contentStartSec) / contentDurationSec, 0),
         1,
       )
-      // Anchor the currently-read line ~30% down from the bubble's top
-      // instead of flush against it — mapping fraction straight onto
-      // scrollTop puts the active line right at the top edge early on,
-      // so it gets scrolled out of view the moment it's actually spoken.
-      const scrollRange = el.scrollHeight - el.clientHeight
-      const readingY = contentFraction * el.scrollHeight
-      const target = readingY - 0.3 * el.clientHeight
-      el.scrollTop = Math.min(Math.max(target, 0), scrollRange)
+      scrollToReadingPosition(el, contentFraction)
     },
   })
+}
+
+// With audio off there's no speech timeline to sync scrolling against, but a
+// long message still needs to become fully visible before the display timer
+// advances — so scroll it top to bottom at a steady pace over that window,
+// using the same anchored positioning as the audio-driven scroll above.
+// Returns a function to cancel the animation early (message advanced/unmounted).
+function autoScrollBubble(el: HTMLDivElement, durationMs: number): () => void {
+  const scrollRange = el.scrollHeight - el.clientHeight
+  if (scrollRange <= 0) return () => {}
+  const start = performance.now()
+  let rafId: number
+  const tick = (now: number) => {
+    const fraction = Math.min((now - start) / durationMs, 1)
+    scrollToReadingPosition(el, fraction)
+    if (fraction < 1) rafId = requestAnimationFrame(tick)
+  }
+  rafId = requestAnimationFrame(tick)
+  return () => cancelAnimationFrame(rafId)
+}
+
+// A flat DISPLAY_MS is fine for short text, but a long message needs
+// proportionally more time to actually read — same idea as TTS taking longer
+// to speak more words. ~180 wpm is a comfortably slow, accessible pace;
+// `rate` (the module's Lesegeschwindigkeit) scales it the same way it scales
+// speech, so "langsam"/"schnell" affects silent reading time too.
+const READING_WORDS_PER_MINUTE = 180
+
+function estimateReadingMs(text: string, rate: number): number {
+  const words = text.trim().split(/\s+/).filter(Boolean).length
+  const minutesAtRate = words / (READING_WORDS_PER_MINUTE * rate)
+  return Math.max(DISPLAY_MS, minutesAtRate * 60000)
 }
 
 function useMessagePlayback(params: {
@@ -238,6 +276,7 @@ function useMessagePlayback(params: {
   const [index, setIndex] = useState(0)
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const stopAutoScrollRef = useRef<(() => void) | null>(null)
   const interruptDoneRef = useShutdownRequest(onShutdownRequest, onModuleDone, audioRef)
 
   const rateRef = useRef(rate)
@@ -359,7 +398,10 @@ function useMessagePlayback(params: {
             pauseMsRef.current,
           )
         } else {
-          timerRef.current = setTimeout(advance, DISPLAY_MS)
+          const readingMs = estimateReadingMs(msg.content, rateRef.current)
+          if (bubbleRef.current)
+            stopAutoScrollRef.current = autoScrollBubble(bubbleRef.current, readingMs)
+          timerRef.current = setTimeout(advance, readingMs)
         }
       } else if (msg.type === 'image') {
         if (audio) {
@@ -455,6 +497,7 @@ function useMessagePlayback(params: {
       if (startTimer) clearTimeout(startTimer)
       triggerAudioRef.current = null
       if (timerRef.current) clearTimeout(timerRef.current)
+      stopAutoScrollRef.current?.()
       if (audioEl) {
         audioEl.onended = null
         audioEl.oncanplay = null
