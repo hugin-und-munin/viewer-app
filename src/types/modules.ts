@@ -48,4 +48,19 @@ export interface TimeProps extends BaseModule {
   theme?: 'light' | 'dark'
 }
 
-export type ModuleProps = ChatProps | RoutineProps | TimeProps
+export interface WeatherProps extends BaseModule {
+  type: 'Weather'
+  latitude?: number
+  longitude?: number
+  imageSource?: 'icon' | 'photo'
+  showTemperature?: boolean
+  announceTomorrow?: boolean
+  audio?: boolean
+  voice?: 'male' | 'female'
+  readingSpeed?: 'slow' | 'normal' | 'fast'
+  pause?: 'short' | 'medium' | 'long'
+  repeat?: boolean
+  theme?: 'light' | 'dark'
+}
+
+export type ModuleProps = ChatProps | RoutineProps | TimeProps | WeatherProps

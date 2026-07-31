@@ -153,6 +153,33 @@
       </div>
     </div>
 
+    <div class="section">
+      <h2>Wetter</h2>
+      <div class="row">
+        <button onclick="testWeatherIcon()">Icon</button>
+        <button onclick="testWeatherPhoto()">Naturbild</button>
+      </div>
+      <div class="row">
+        <button onclick="testWeatherTemp()">Mit Temperatur</button>
+        <button onclick="testWeatherTomorrow()">Mit Morgen-Ansage</button>
+      </div>
+      <div class="row">
+        <button onclick="testWeatherFemale()">Female</button>
+        <button onclick="testWeatherMale()">Male</button>
+      </div>
+      <div class="row">
+        <button onclick="testWeatherMuted()">Ohne Ton</button>
+        <button onclick="testWeatherRepeat()">Wiederholung</button>
+        <button onclick="testWeatherPauseShort()">Pause Kurz (schnell testen)</button>
+      </div>
+      <div class="row">
+        <button onclick="testWeatherNoSound()">Ohne Signalton</button>
+      </div>
+      <div class="row">
+        <button onclick="testWeatherDark()">Dark Mode</button>
+      </div>
+    </div>
+
     <div class="section wide">
       <h2>Custom JSON</h2>
       <textarea id="json-input">{
@@ -177,6 +204,7 @@
     const CHAT_ID    = "00000000-0000-0000-0003-000000000003";
     const TIME_ID    = "00000000-0000-0000-0003-000000000002";
     const ROUTINE_ID = "00000000-0000-0000-0003-000000000001";
+    const WEATHER_ID = "00000000-0000-0000-0003-000000000004";
 
     async function send(msg) {
       try {
@@ -392,6 +420,64 @@
     function testRoutineDarkSimple() {
       send({ command: "loadModule", type: "Routine", module_id: ROUTINE_ID,
         duration: 600000, audio: false, mode: "simple", theme: "dark" });
+    }
+
+    // ── Wetter ────────────────────────────────────────────────────────────
+
+    function testWeatherIcon() {
+      send({ command: "loadModule", type: "Weather", module_id: WEATHER_ID,
+        duration: 300000, audio: false, imageSource: "icon" });
+    }
+
+    function testWeatherPhoto() {
+      send({ command: "loadModule", type: "Weather", module_id: WEATHER_ID,
+        duration: 300000, audio: false, imageSource: "photo" });
+    }
+
+    function testWeatherTemp() {
+      send({ command: "loadModule", type: "Weather", module_id: WEATHER_ID,
+        duration: 300000, audio: false, imageSource: "icon", showTemperature: true });
+    }
+
+    function testWeatherTomorrow() {
+      send({ command: "loadModule", type: "Weather", module_id: WEATHER_ID,
+        duration: 300000, audio: true, voice: "female", announceTomorrow: true });
+    }
+
+    function testWeatherFemale() {
+      send({ command: "loadModule", type: "Weather", module_id: WEATHER_ID,
+        duration: 300000, audio: true, voice: "female" });
+    }
+
+    function testWeatherMale() {
+      send({ command: "loadModule", type: "Weather", module_id: WEATHER_ID,
+        duration: 300000, audio: true, voice: "male" });
+    }
+
+    function testWeatherMuted() {
+      send({ command: "loadModule", type: "Weather", module_id: WEATHER_ID,
+        duration: 300000, audio: false });
+    }
+
+    function testWeatherRepeat() {
+      send({ command: "loadModule", type: "Weather", module_id: WEATHER_ID,
+        duration: 300000, audio: true, voice: "female", pause: "short", repeat: true });
+    }
+
+    function testWeatherPauseShort() {
+      // Short scale (3s) so the module-start pause is quick to hear.
+      send({ command: "loadModule", type: "Weather", module_id: WEATHER_ID,
+        duration: 300000, audio: true, voice: "female", pause: "short" });
+    }
+
+    function testWeatherNoSound() {
+      send({ command: "loadModule", type: "Weather", module_id: WEATHER_ID,
+        duration: 300000, audio: false, transitionSound: false });
+    }
+
+    function testWeatherDark() {
+      send({ command: "loadModule", type: "Weather", module_id: WEATHER_ID,
+        duration: 300000, audio: false, imageSource: "icon", theme: "dark" });
     }
 
     // ── Custom ────────────────────────────────────────────────────────────

@@ -1,11 +1,13 @@
 import Chat from '../components/modules/Chat'
 import Routine from '../components/modules/Routine'
 import Time from '../components/modules/Time'
+import Weather from '../components/modules/Weather'
 
 export const moduleRegistry = {
   Chat,
   Time,
   Routine,
+  Weather,
 } as const
 
 type RegistryKey = keyof typeof moduleRegistry
