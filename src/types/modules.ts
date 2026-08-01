@@ -60,7 +60,13 @@ export interface WeatherProps extends BaseModule {
   readingSpeed?: 'slow' | 'normal' | 'fast'
   pause?: 'short' | 'medium' | 'long'
   repeat?: boolean
-  theme?: 'light' | 'dark'
+  // No theme setting — the background colour itself is the day/night
+  // signal, which a user-selectable dark mode would fight with.
+  // Dev/QA only, not exposed in the settings schema: cycles through a fixed
+  // list of synthetic time/temperature/weather states (see
+  // weatherTestScenarios.ts) instead of fetching real data — a different
+  // state each time the module is (re)loaded.
+  testCycle?: boolean
 }
 
 export type ModuleProps = ChatProps | RoutineProps | TimeProps | WeatherProps

@@ -5,12 +5,14 @@ import type { WeatherProps } from '../../types/modules'
 import { READING_RATE, SHORT_PAUSE_MS, LONG_PAUSE_MS } from '../../utils/ttsPacing'
 import {
   weatherAssetCategory,
-  weatherConditionPhrase,
+  weatherConditionSentence,
+  weatherConditionSentenceTomorrow,
   temperatureTerm,
   windModifier,
   sunPositionPhrase,
   type WeatherAssetCategory,
 } from '../../utils/weatherAnnouncement'
+import { buildTestWeatherData, nextTestScenario } from '../../utils/weatherTestScenarios'
 
 import iconSonnig from '../../assets/weather/sonnig.svg'
 import iconKlarNacht from '../../assets/weather/klar-nacht.svg'
@@ -23,16 +25,20 @@ import iconRegenStark from '../../assets/weather/regen-stark.svg'
 import iconGewitter from '../../assets/weather/gewitter.svg'
 import iconSchnee from '../../assets/weather/schnee.svg'
 
-import photoSonnig from '../../assets/weather-photos/sonnig.svg'
-import photoKlarNacht from '../../assets/weather-photos/klar-nacht.svg'
-import photoTeilweiseBewoelkt from '../../assets/weather-photos/teilweise-bewoelkt.svg'
-import photoTeilweiseBewoelktNacht from '../../assets/weather-photos/teilweise-bewoelkt-nacht.svg'
-import photoBedeckt from '../../assets/weather-photos/bedeckt.svg'
-import photoNebel from '../../assets/weather-photos/nebel.svg'
-import photoRegenLeicht from '../../assets/weather-photos/regen-leicht.svg'
-import photoRegenStark from '../../assets/weather-photos/regen-stark.svg'
-import photoGewitter from '../../assets/weather-photos/gewitter.svg'
-import photoSchnee from '../../assets/weather-photos/schnee.svg'
+// Real photos, all supplied by the family. teilweise-bewoelkt-nacht has no
+// dedicated photo of its own — it reuses the plain "bewölkt" one, which is
+// close enough (there's no sun in either shot to give away day vs night).
+import photoSonnig from '../../assets/weather-photos/klar-sonne.jpeg'
+import photoKlarNacht from '../../assets/weather-photos/nacht-klar.jpeg'
+import photoTeilweiseBewoelkt from '../../assets/weather-photos/leicht-bewoelkt.jpeg'
+import photoBedeckt from '../../assets/weather-photos/bewoelkt.jpeg'
+import photoBedecktNacht from '../../assets/weather-photos/nacht-bedeckt.jpeg'
+import photoNebel from '../../assets/weather-photos/nebel.jpeg'
+import photoRegen from '../../assets/weather-photos/regen.jpeg'
+import photoGewitter from '../../assets/weather-photos/gewitter-tag.jpeg'
+import photoGewitterNacht from '../../assets/weather-photos/gewitter-nacht.jpg'
+import photoSchnee from '../../assets/weather-photos/schnee-tag.jpeg'
+import photoSchneeNacht from '../../assets/weather-photos/schnee-nacht.jpg'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -43,58 +49,73 @@ const FONT = "'Atkinson Hyperlegible', sans-serif"
 const DEFAULT_LATITUDE = 47.2088
 const DEFAULT_LONGITUDE = 7.5323
 
+// No dedicated night icons for anything below — none of these have a sun
+// in the artwork to begin with, so the same line-drawing already reads
+// fine day or night (unlike the real photos, which do get a night shot).
 const ICONS: Record<WeatherAssetCategory, string> = {
   sonnig: iconSonnig,
   'klar-nacht': iconKlarNacht,
   'teilweise-bewoelkt': iconTeilweiseBewoelkt,
   'teilweise-bewoelkt-nacht': iconTeilweiseBewoelktNacht,
   bedeckt: iconBedeckt,
+  'bedeckt-nacht': iconBedeckt,
   nebel: iconNebel,
   'regen-leicht': iconRegenLeicht,
   'regen-stark': iconRegenStark,
   gewitter: iconGewitter,
+  'gewitter-nacht': iconGewitter,
   schnee: iconSchnee,
+  'schnee-nacht': iconSchnee,
 }
 
-// Dummy stand-ins until real, licensed nature photos are sourced per category.
+// Real photos throughout. regen-leicht/regen-stark share one photo, day
+// and night alike — only one rain photo was supplied, not one per
+// intensity or time of day.
 const PHOTOS: Record<WeatherAssetCategory, string> = {
   sonnig: photoSonnig,
   'klar-nacht': photoKlarNacht,
   'teilweise-bewoelkt': photoTeilweiseBewoelkt,
-  'teilweise-bewoelkt-nacht': photoTeilweiseBewoelktNacht,
+  'teilweise-bewoelkt-nacht': photoBedeckt,
   bedeckt: photoBedeckt,
+  'bedeckt-nacht': photoBedecktNacht,
   nebel: photoNebel,
-  'regen-leicht': photoRegenLeicht,
-  'regen-stark': photoRegenStark,
+  'regen-leicht': photoRegen,
+  'regen-stark': photoRegen,
   gewitter: photoGewitter,
+  'gewitter-nacht': photoGewitterNacht,
   schnee: photoSchnee,
+  'schnee-nacht': photoSchneeNacht,
 }
 
-// ─── Theme ────────────────────────────────────────────────────────────────────
+// ─── Colours ──────────────────────────────────────────────────────────────────
+
+// No separate *user-selectable* light/dark theme here on purpose — the
+// background colour itself IS the day/night signal (see weatherBackground
+// below), and a manual dark-mode toggle would fight with that (a dark
+// screen could then mean either "dark mode" or "it's night",
+// indistinguishably). Night still gets a genuinely dark base though, not
+// just a stronger tint of the same light one.
+const LIGHT_BASE_RGB: [number, number, number] = [250, 250, 247]
+const DARK_BASE_RGB: [number, number, number] = [16, 17, 23]
+const TEXT_COLOR = 'black'
 
 // One identity colour per asset category (echoes the icon's own palette),
-// mixed faintly into the theme's base so the background reads as "the
-// theme, tinted by the weather" rather than a mood-board of colours.
+// mixed into the base so the background reads as "tinted by the weather"
+// rather than a mood-board of colours.
 const CATEGORY_HUE: Record<WeatherAssetCategory, string> = {
   sonnig: '#E8A33D',
   'klar-nacht': '#3B3D6B',
   'teilweise-bewoelkt': '#8FA6B8',
   'teilweise-bewoelkt-nacht': '#4E5C77',
   bedeckt: '#7C8894',
+  'bedeckt-nacht': '#4A5058',
   nebel: '#B7C0C7',
   'regen-leicht': '#6FA3C4',
   'regen-stark': '#2C5F87',
   gewitter: '#5F707C',
+  'gewitter-nacht': '#3A434B',
   schnee: '#A9C7DC',
-}
-
-const THEME_BASE: Record<'light' | 'dark', [number, number, number]> = {
-  light: [250, 250, 247],
-  dark: [24, 26, 32],
-}
-const THEME_TEXT: Record<'light' | 'dark', string> = {
-  light: 'black',
-  dark: '#f4f4f5',
+  'schnee-nacht': '#5D7C93',
 }
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -112,14 +133,11 @@ function mixRgb(hex: string, base: [number, number, number], amount: number): st
   return `rgb(${mr}, ${mg}, ${mb})`
 }
 
-// Night leans in a touch more than day — still subtle, just enough to feel
-// like dusk/dark rather than a straight recolour.
-function weatherBackground(
-  theme: 'light' | 'dark',
-  category: WeatherAssetCategory,
-  isDay: boolean,
-): string {
-  return mixRgb(CATEGORY_HUE[category], THEME_BASE[theme], isDay ? 0.16 : 0.24)
+// Day mixes the weather colour into a light base; night mixes it into an
+// actually dark one — not just a heavier tint of the daytime pastel.
+function weatherBackground(category: WeatherAssetCategory, isDay: boolean): string {
+  if (isDay) return mixRgb(CATEGORY_HUE[category], LIGHT_BASE_RGB, 0.4)
+  return mixRgb(CATEGORY_HUE[category], DARK_BASE_RGB, 0.5)
 }
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
@@ -132,13 +150,23 @@ interface WeatherData {
   sunrise: Date
   sunset: Date
   tomorrow?: { weatherCode: number; maxTemp: number }
+  // "Now" as far as the announcement is concerned — real wall-clock time
+  // for live data, but a synthetic time in test-cycle mode so the sun
+  // position phrase matches the synthetic sunrise/sunset instead of reality.
+  announcementNow: Date
 }
 
-function useWeatherData(latitude: number, longitude: number) {
-  const [data, setData] = useState<WeatherData | null>(null)
+// `testCycle` picks a fresh synthetic scenario once per mount (see
+// weatherTestScenarios.ts) instead of calling Open-Meteo — every module
+// reload therefore shows a different time of day, temperature and weather.
+function useWeatherData(latitude: number, longitude: number, testCycle: boolean) {
+  const [data, setData] = useState<WeatherData | null>(() =>
+    testCycle ? buildTestWeatherData(nextTestScenario()) : null,
+  )
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (testCycle) return
     let cancelled = false
     setData(null)
     setError(null)
@@ -148,7 +176,14 @@ function useWeatherData(latitude: number, longitude: number) {
       `&daily=weather_code,temperature_2m_max,sunrise,sunset` +
       `&timezone=auto&forecast_days=2`
 
-    fetch(url)
+    // Without this, a dead/unreachable connection can leave fetch() hanging
+    // far longer than a kiosk display should wait before giving up and
+    // skipping the module (see the "no data → onModuleDone" effect above).
+    const REQUEST_TIMEOUT_MS = 3000
+    const timeoutController = new AbortController()
+    const timeoutId = setTimeout(() => timeoutController.abort(), REQUEST_TIMEOUT_MS)
+
+    fetch(url, { signal: timeoutController.signal })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         return res.json()
@@ -169,16 +204,27 @@ function useWeatherData(latitude: number, longitude: number) {
                   maxTemp: json.daily.temperature_2m_max[1],
                 }
               : undefined,
+          announcementNow: new Date(),
         })
       })
       .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : String(err))
+        if (!cancelled) {
+          const message =
+            err instanceof DOMException && err.name === 'AbortError'
+              ? `timed out after ${REQUEST_TIMEOUT_MS}ms`
+              : err instanceof Error
+                ? err.message
+                : String(err)
+          setError(message)
+        }
       })
+      .finally(() => clearTimeout(timeoutId))
 
     return () => {
       cancelled = true
+      clearTimeout(timeoutId)
     }
-  }, [latitude, longitude])
+  }, [latitude, longitude, testCycle])
 
   return { data, error }
 }
@@ -195,33 +241,35 @@ function joinGerman(parts: (string | undefined)[]): string {
 
 function buildAnnouncement(
   data: WeatherData,
-  now: Date,
   showTemperature: boolean,
   announceTomorrow: boolean,
 ): string {
   const parts: string[] = ['Hier ist das Wetter von heute.']
-  const sunPhrase = sunPositionPhrase(now, data.sunrise, data.sunset)
+  const sunPhrase = sunPositionPhrase(data.announcementNow, data.sunrise, data.sunset)
   if (sunPhrase) parts.push(sunPhrase)
 
+  // Temperature/wind (predicate adjectives) and the weather condition (its
+  // own full sentence — see weatherConditionSentence) are kept as separate
+  // sentences rather than spliced together, since most WMO conditions are
+  // nouns ("Gewitter", "Nebel") that read as broken German glued onto
+  // "Es ist heiss und ___".
   const todayDescriptors = joinGerman([
     temperatureTerm(data.temperature),
     windModifier(data.windKmh),
-    weatherConditionPhrase(data.weatherCode),
   ])
   parts.push(`Es ist ${todayDescriptors}.`)
+  parts.push(weatherConditionSentence(data.weatherCode))
 
   if (showTemperature) {
     parts.push(`Draussen hat es ${Math.round(data.temperature)} Grad.`)
   }
 
   if (announceTomorrow && data.tomorrow) {
-    const tomorrowDescriptors = joinGerman([
-      temperatureTerm(data.tomorrow.maxTemp),
-      weatherConditionPhrase(data.tomorrow.weatherCode),
-    ])
-    parts.push(
-      `Morgen ist es ${tomorrowDescriptors}. Die Temperaturen erreichen ${Math.round(data.tomorrow.maxTemp)} Grad.`,
-    )
+    // Descriptive terms only — no degree number for tomorrow, unlike
+    // today's optional exact temperature. Both sentences are fronted with
+    // "Morgen" so neither can be misread as a statement about today.
+    parts.push(`Morgen ist es ${temperatureTerm(data.tomorrow.maxTemp)}.`)
+    parts.push(weatherConditionSentenceTomorrow(data.tomorrow.weatherCode))
   }
 
   return parts.join(PAUSE)
@@ -229,8 +277,10 @@ function buildAnnouncement(
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function StatusScreen({ text, theme }: { text: string; theme: 'light' | 'dark' }) {
-  const [r, g, b] = THEME_BASE[theme]
+function StatusScreen({ text }: { text: string }) {
+  // isDay isn't known yet at this point (still loading, or failed before
+  // ever getting data) — always the light base, since this screen is brief.
+  const [r, g, b] = LIGHT_BASE_RGB
   return (
     <Box
       role="status"
@@ -242,8 +292,38 @@ function StatusScreen({ text, theme }: { text: string; theme: 'light' | 'dark' }
         bgcolor: `rgb(${r}, ${g}, ${b})`,
       }}
     >
-      <Typography sx={{ fontFamily: FONT, fontSize: '2rem', color: THEME_TEXT[theme] }}>
-        {text}
+      <Typography sx={{ fontFamily: FONT, fontSize: '2rem', color: TEXT_COLOR }}>{text}</Typography>
+    </Box>
+  )
+}
+
+// White rounded square, black text — always legible regardless of what's
+// behind it (a tinted background in icon mode, an arbitrary photo in photo
+// mode).
+function TemperatureBadge({ value }: { value: number }) {
+  return (
+    <Box
+      sx={{
+        width: '24vh',
+        height: '24vh',
+        borderRadius: '3vh',
+        bgcolor: '#fff',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)',
+      }}
+    >
+      <Typography
+        sx={{
+          fontFamily: FONT,
+          fontWeight: 700,
+          fontSize: '6.5rem',
+          lineHeight: 1,
+          color: 'black',
+        }}
+      >
+        {Math.round(value)}°
       </Typography>
     </Box>
   )
@@ -264,9 +344,9 @@ function Weather({
   readingSpeed = 'normal',
   pause = 'medium',
   repeat = false,
-  theme = 'light',
+  testCycle = false,
 }: WeatherProps) {
-  const { data, error } = useWeatherData(latitude, longitude)
+  const { data, error } = useWeatherData(latitude, longitude, testCycle)
   const rate = READING_RATE[readingSpeed] ?? 1.0
   const pauseMs = SHORT_PAUSE_MS[pause] ?? 0
   const repeatGapMs = LONG_PAUSE_MS[pause] ?? 0
@@ -288,13 +368,21 @@ function Weather({
     })
   }, [onShutdownRequest])
 
+  // No data (typically: no internet connection) — nothing useful to show,
+  // so skip straight to the next module instead of sitting on an error
+  // screen for the module's whole duration. onModuleDone advances the
+  // scheduler immediately, same mechanism as a normal shutdown handoff.
+  useEffect(() => {
+    if (error) onModuleDoneRef.current?.()
+  }, [error])
+
   useEffect(() => {
     if (!audio || !data) return
     let repeated = false
     let repeatTimer: ReturnType<typeof setTimeout> | null = null
 
     function playOnce() {
-      const text = buildAnnouncement(data!, new Date(), showTemperature, announceTomorrow)
+      const text = buildAnnouncement(data!, showTemperature, announceTomorrow)
       speak(text, { voice: voice as TtsVoice, rate, pauseMs, onEnd: handleEnd })
     }
 
@@ -323,14 +411,13 @@ function Weather({
     }
   }, [data, audio, voice, rate, pauseMs, repeat, repeatGapMs, showTemperature, announceTomorrow])
 
-  if (error) return <StatusScreen text="Wetter nicht verfügbar" theme={theme} />
-  if (!data) return <StatusScreen text="Lade Wetter…" theme={theme} />
+  if (error) return <StatusScreen text="Wetter nicht verfügbar" />
+  if (!data) return <StatusScreen text="Lade Wetter…" />
 
   const category = weatherAssetCategory(data.weatherCode, data.isDay)
   const imageSrc = imageSource === 'photo' ? PHOTOS[category] : ICONS[category]
   const isPhoto = imageSource === 'photo'
-  const bg = weatherBackground(theme, category, data.isDay)
-  const textColor = THEME_TEXT[theme]
+  const bg = weatherBackground(category, data.isDay)
 
   // Deliberately minimal — the image itself carries the weather, spoken
   // audio carries the detail. The only optional text is the temperature.
@@ -355,39 +442,43 @@ function Weather({
             sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
           />
           {showTemperature && (
-            <Typography
-              sx={{
-                position: 'absolute',
-                bottom: '8%',
-                fontFamily: FONT,
-                fontWeight: 700,
-                fontSize: '6rem',
-                color: '#fff',
-                textShadow: '0 2px 16px rgba(0,0,0,0.5)',
-              }}
-            >
-              {Math.round(data.temperature)}°
-            </Typography>
+            <Box sx={{ position: 'absolute', bottom: '8%' }}>
+              <TemperatureBadge value={data.temperature} />
+            </Box>
           )}
         </>
       ) : (
-        // Icon + temperature centred as one group, not the icon alone with
-        // the number pinned far below at the screen edge.
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2vh' }}>
+        // Icon + temperature share one white card — several icons have a
+        // hue close to the tinted page background, so without it they'd
+        // lose contrast against it.
+        <Box
+          sx={{
+            bgcolor: '#fff',
+            borderRadius: '4vh',
+            padding: '3vh',
+            boxShadow: '0 4px 24px rgba(0, 0, 0, 0.15)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '1vh',
+          }}
+        >
           <Box
             component="img"
             src={imageSrc}
             alt=""
-            sx={{ width: '40vh', height: '40vh', objectFit: 'contain', display: 'block' }}
+            sx={{ width: '65vh', height: '65vh', objectFit: 'contain', display: 'block' }}
           />
           {showTemperature && (
+            // Plain text, not TemperatureBadge — the icon already sits on a
+            // white card, so a second nested white box would be redundant.
             <Typography
               sx={{
                 fontFamily: FONT,
                 fontWeight: 700,
-                fontSize: '6rem',
+                fontSize: '8rem',
                 lineHeight: 1,
-                color: textColor,
+                color: TEXT_COLOR,
               }}
             >
               {Math.round(data.temperature)}°

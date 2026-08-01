@@ -176,7 +176,10 @@
         <button onclick="testWeatherNoSound()">Ohne Signalton</button>
       </div>
       <div class="row">
-        <button onclick="testWeatherDark()">Dark Mode</button>
+        <button class="orange" onclick="testWeatherCycle()">Test-Zyklus Icons (jeder Klick = andere Tageszeit/Temperatur/Wetter)</button>
+      </div>
+      <div class="row">
+        <button class="orange" onclick="testWeatherCyclePhoto()">Test-Zyklus Fotos (jeder Klick = andere Tageszeit/Temperatur/Wetter)</button>
       </div>
     </div>
 
@@ -475,9 +478,23 @@
         duration: 300000, audio: false, transitionSound: false });
     }
 
-    function testWeatherDark() {
+    function testWeatherCycle() {
+      // testCycle steps through a fixed list of synthetic time/temperature/
+      // weather states (weatherTestScenarios.ts), a new one per module load —
+      // click repeatedly to page through all of them. Shares its cursor with
+      // testWeatherCyclePhoto() below (same underlying scenario list), so
+      // interleaving clicks between the two just continues the sequence.
       send({ command: "loadModule", type: "Weather", module_id: WEATHER_ID,
-        duration: 300000, audio: false, imageSource: "icon", theme: "dark" });
+        duration: 300000, audio: true, voice: "female", pause: "short",
+        imageSource: "icon", showTemperature: true, announceTomorrow: true, testCycle: true });
+    }
+
+    function testWeatherCyclePhoto() {
+      // Same test cycle, but with imageSource "photo" — use this one to
+      // check the real JPGs in weather-photos/ rather than the icons.
+      send({ command: "loadModule", type: "Weather", module_id: WEATHER_ID,
+        duration: 300000, audio: true, voice: "female", pause: "short",
+        imageSource: "photo", showTemperature: true, announceTomorrow: true, testCycle: true });
     }
 
     // ── Custom ────────────────────────────────────────────────────────────

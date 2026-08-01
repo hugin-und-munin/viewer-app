@@ -8,56 +8,97 @@ export type WeatherAssetCategory =
   | 'teilweise-bewoelkt'
   | 'teilweise-bewoelkt-nacht'
   | 'bedeckt'
+  | 'bedeckt-nacht'
   | 'nebel'
   | 'regen-leicht'
   | 'regen-stark'
   | 'gewitter'
+  | 'gewitter-nacht'
   | 'schnee'
+  | 'schnee-nacht'
 
 // WMO weather codes (https://open-meteo.com/en/docs) → the asset category
 // used to pick an icon/photo file. Coarser than the spoken phrase below —
 // e.g. light and heavy rain share one image but are worded differently.
 //
-// Only the two categories that actually depict the sun (sonnig,
-// teilweise-bewoelkt) have a night variant — everything else (bedeckt,
-// nebel, regen-leicht, regen-stark, gewitter, schnee) has no sun in the
-// artwork to begin with, so the same image already reads fine day or night.
+// regen-leicht/regen-stark have no night variant — only one rain photo was
+// supplied, used day or night alike. nebel is the same for the same reason.
 export function weatherAssetCategory(code: number, isDay: boolean): WeatherAssetCategory {
   if (code === 0) return isDay ? 'sonnig' : 'klar-nacht'
   if (code === 1 || code === 2) return isDay ? 'teilweise-bewoelkt' : 'teilweise-bewoelkt-nacht'
-  if (code === 3) return 'bedeckt'
+  if (code === 3) return isDay ? 'bedeckt' : 'bedeckt-nacht'
   if (code === 45 || code === 48) return 'nebel'
   // Same slight-vs-rest severity split as the spoken phrase below, so the
   // icon and the words always agree on "how bad is it".
   if ([51, 61, 80].includes(code)) return 'regen-leicht'
   if ([53, 55, 56, 57, 63, 65, 66, 67, 81, 82].includes(code)) return 'regen-stark'
-  if ([71, 73, 75, 77, 85, 86].includes(code)) return 'schnee'
-  if (code === 95 || code === 96 || code === 99) return 'gewitter'
-  return 'bedeckt'
+  if ([71, 73, 75, 77, 85, 86].includes(code)) return isDay ? 'schnee' : 'schnee-nacht'
+  if (code === 95 || code === 96 || code === 99) return isDay ? 'gewitter' : 'gewitter-nacht'
+  return isDay ? 'bedeckt' : 'bedeckt-nacht'
 }
 
 // Same codes, but worded for speech — finer-grained than the asset category
 // (e.g. "leichter" vs "starker" Regen share one image, not one phrase).
-export function weatherConditionPhrase(code: number): string {
-  if (code === 0) return 'klarer Himmel'
-  if (code === 1) return 'überwiegend klar'
-  if (code === 2) return 'leicht bewölkt'
-  if (code === 3) return 'bedeckt'
-  if (code === 45 || code === 48) return 'Nebel'
+//
+// Stored as {subject, verb, rest} rather than a flat string — most WMO
+// conditions are nouns ("Gewitter", "Nebel", "leichter Regen"), not
+// predicate adjectives, so splicing them into "Es ist [temperature] und
+// ___" reads as broken German ("Es ist heiss und Gewitter"). Building a
+// full, self-contained sentence per condition avoids that. Keeping the
+// pieces separate (rather than two independent string tables) also lets
+// weatherConditionSentenceTomorrow front the sentence with "Morgen" using
+// correct German verb-second word order, instead of drifting out of sync
+// with a hand-written second version.
+interface ConditionClause {
+  subject: 'es' | 'der Himmel' | 'das Wetter'
+  verb: string
+  rest: string
+}
+
+function conditionClause(code: number): ConditionClause {
+  if (code === 0) return { subject: 'der Himmel', verb: 'ist', rest: 'klar' }
+  if (code === 1) return { subject: 'der Himmel', verb: 'ist', rest: 'überwiegend klar' }
+  if (code === 2) return { subject: 'es', verb: 'ist', rest: 'leicht bewölkt' }
+  if (code === 3) return { subject: 'es', verb: 'ist', rest: 'bedeckt' }
+  if (code === 45 || code === 48) return { subject: 'es', verb: 'ist', rest: 'neblig' }
   // Bucketed by WMO's own "slight" vs "moderate/heavy/dense/violent" severity —
   // e.g. code 80 is explicitly "rain showers: slight", so it belongs with the
   // light bucket even though it's a shower rather than steady rain.
-  if ([51, 61, 80].includes(code)) return 'leichter Regen'
-  if ([53, 55, 63, 65, 81, 82].includes(code)) return 'starker Regen'
+  if ([51, 61, 80].includes(code)) return { subject: 'es', verb: 'regnet', rest: 'leicht' }
+  if ([53, 55, 63, 65, 81, 82].includes(code))
+    return { subject: 'es', verb: 'regnet', rest: 'stark' }
   // Freezing drizzle/rain (56/57/66/67) — ice hazard, called out explicitly
-  // rather than folded into the plain rain buckets above.
-  if (code === 56 || code === 57) return 'gefrierender Sprühregen'
-  if (code === 66 || code === 67) return 'gefrierender Regen'
-  if ([71, 77, 85].includes(code)) return 'leichter Schnee'
-  if ([73, 75, 86].includes(code)) return 'starker Schnee'
-  if (code === 95) return 'Gewitter'
-  if (code === 96 || code === 99) return 'Gewitter mit Hagel'
-  return 'wechselhaftes Wetter'
+  // rather than folded into the plain rain buckets above. Same wording for
+  // both; "gefrierender Sprühregen" reads oddly in German.
+  if (code === 56 || code === 57 || code === 66 || code === 67) {
+    return { subject: 'es', verb: 'gibt', rest: 'gefrierenden Regen' }
+  }
+  if ([71, 77, 85].includes(code)) return { subject: 'es', verb: 'schneit', rest: 'leicht' }
+  if ([73, 75, 86].includes(code)) return { subject: 'es', verb: 'schneit', rest: 'stark' }
+  if (code === 95) return { subject: 'es', verb: 'gibt', rest: 'ein Gewitter' }
+  if (code === 96 || code === 99)
+    return { subject: 'es', verb: 'gibt', rest: 'ein Gewitter mit Hagel' }
+  return { subject: 'das Wetter', verb: 'ist', rest: 'wechselhaft' }
+}
+
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1)
+}
+
+// "Es ist bedeckt." / "Der Himmel ist klar." / "Es gibt ein Gewitter." —
+// today's condition, spoken as its own PAUSE-separated segment.
+export function weatherConditionSentence(code: number): string {
+  const { subject, verb, rest } = conditionClause(code)
+  return `${capitalize(subject)} ${verb} ${rest}.`
+}
+
+// Same condition, fronted with "Morgen" (German verb-second word order:
+// "Morgen ist es bedeckt.", "Morgen gibt es ein Gewitter.") — used instead
+// of weatherConditionSentence for tomorrow's forecast so it can't be
+// mistaken for a second statement about today's weather.
+export function weatherConditionSentenceTomorrow(code: number): string {
+  const { subject, verb, rest } = conditionClause(code)
+  return `Morgen ${verb} ${subject} ${rest}.`
 }
 
 // Thresholds are a judgement call, not a standard — tuned so e.g. 32°C
