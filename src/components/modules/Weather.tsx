@@ -45,9 +45,13 @@ import photoSchneeNacht from '../../assets/weather-photos/schnee-nacht.jpg'
 const FONT = "'Atkinson Hyperlegible', sans-serif"
 
 // Solothurn city centre — the module's default location until a family
-// member sets a different one in content-app.
-const DEFAULT_LATITUDE = 47.2088
-const DEFAULT_LONGITUDE = 7.5323
+// member picks a different town in content-app.
+const DEFAULT_LOCATION = '47.2088,7.5323'
+
+function parseLocation(location: string): { latitude: number; longitude: number } {
+  const [lat, lon] = location.split(',').map(Number)
+  return { latitude: lat, longitude: lon }
+}
 
 // No dedicated night icons for anything below — none of these have a sun
 // in the artwork to begin with, so the same line-drawing already reads
@@ -338,8 +342,7 @@ function TemperatureBadge({ value }: { value: number }) {
 function Weather({
   onShutdownRequest,
   onModuleDone,
-  latitude = DEFAULT_LATITUDE,
-  longitude = DEFAULT_LONGITUDE,
+  location = DEFAULT_LOCATION,
   imageSource = 'icon',
   showTemperature = true,
   announceTomorrow = false,
@@ -350,6 +353,7 @@ function Weather({
   repeat = false,
   testCycle = false,
 }: WeatherProps) {
+  const { latitude, longitude } = parseLocation(location)
   const { data, error } = useWeatherData(latitude, longitude, testCycle)
   const rate = READING_RATE[readingSpeed] ?? 1.0
   const pauseMs = SHORT_PAUSE_MS[pause] ?? 0

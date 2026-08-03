@@ -50,8 +50,9 @@ export interface TimeProps extends BaseModule {
 
 export interface WeatherProps extends BaseModule {
   type: 'Weather'
-  latitude?: number
-  longitude?: number
+  // "lat,lon" — a single field so content-app can offer it as one dropdown
+  // of Swiss towns rather than two hard-to-use lat/long sliders.
+  location?: string
   imageSource?: 'icon' | 'photo'
   showTemperature?: boolean
   announceTomorrow?: boolean
