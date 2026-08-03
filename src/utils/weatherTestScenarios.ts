@@ -255,6 +255,16 @@ export const WEATHER_TEST_SCENARIOS: WeatherTestScenario[] = [
     isDay: false,
     windKmh: 17,
   },
+  {
+    label: 'Nacht, kühl, Nebel (zeigt bedeckt-nacht)',
+    nowTime: [3, 30],
+    sunriseTime: SUNRISE,
+    sunsetTime: SUNSET,
+    temperature: 5,
+    weatherCode: 45,
+    isDay: false,
+    windKmh: 2,
+  },
 ]
 
 function timeToday(base: Date, [hours, minutes]: [number, number]): Date {

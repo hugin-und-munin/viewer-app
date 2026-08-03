@@ -70,12 +70,16 @@ const ICONS: Record<WeatherAssetCategory, string> = {
 
 // Real photos throughout. regen-leicht/regen-stark share one photo, day
 // and night alike — only one rain photo was supplied, not one per
-// intensity or time of day.
+// intensity or time of day. teilweise-bewoelkt-nacht has no dedicated photo
+// either — falls back to the NIGHT overcast shot (not the day one), since
+// a bright daytime photo showing at 22:00 reads as flatly wrong, whereas a
+// dark overcast-looking night sky is a reasonable stand-in for a partly
+// cloudy one.
 const PHOTOS: Record<WeatherAssetCategory, string> = {
   sonnig: photoSonnig,
   'klar-nacht': photoKlarNacht,
   'teilweise-bewoelkt': photoTeilweiseBewoelkt,
-  'teilweise-bewoelkt-nacht': photoBedeckt,
+  'teilweise-bewoelkt-nacht': photoBedecktNacht,
   bedeckt: photoBedeckt,
   'bedeckt-nacht': photoBedecktNacht,
   nebel: photoNebel,

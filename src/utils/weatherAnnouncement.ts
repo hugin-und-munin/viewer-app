@@ -22,12 +22,14 @@ export type WeatherAssetCategory =
 // e.g. light and heavy rain share one image but are worded differently.
 //
 // regen-leicht/regen-stark have no night variant — only one rain photo was
-// supplied, used day or night alike. nebel is the same for the same reason.
+// supplied, used day or night alike. Night fog has no dedicated photo
+// either, but falls back to bedeckt-nacht rather than the daytime fog shot
+// (same reasoning as teilweise-bewoelkt-nacht above it).
 export function weatherAssetCategory(code: number, isDay: boolean): WeatherAssetCategory {
   if (code === 0) return isDay ? 'sonnig' : 'klar-nacht'
   if (code === 1 || code === 2) return isDay ? 'teilweise-bewoelkt' : 'teilweise-bewoelkt-nacht'
   if (code === 3) return isDay ? 'bedeckt' : 'bedeckt-nacht'
-  if (code === 45 || code === 48) return 'nebel'
+  if (code === 45 || code === 48) return isDay ? 'nebel' : 'bedeckt-nacht'
   // Same slight-vs-rest severity split as the spoken phrase below, so the
   // icon and the words always agree on "how bad is it".
   if ([51, 61, 80].includes(code)) return 'regen-leicht'
