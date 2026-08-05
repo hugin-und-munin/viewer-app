@@ -1,191 +1,269 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="de">
-<head>
-  <meta charset="UTF-8" />
-  <title>Hugin und Munin Steuerungspanel</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: Arial, sans-serif;
-      background: #f5f5f5;
-      padding: 32px;
-      color: #1e1b4b;
-    }
-    h1 { font-size: 20px; margin-bottom: 24px; }
-    h2 { font-size: 13px; font-weight: bold; text-transform: uppercase;
-         letter-spacing: 0.05em; color: #888; margin-bottom: 10px; }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 16px;
-      max-width: 800px;
-    }
-    .section {
-      background: #fff;
-      border: 1px solid #e0e0e0;
-      padding: 16px;
-    }
-    .section.wide {
-      grid-column: span 2;
-    }
-    .row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
-    button {
-      background: #1e1b4b;
-      color: #fff;
-      border: none;
-      padding: 8px 14px;
-      font-size: 12px;
-      cursor: pointer;
-    }
-    button:hover { background: #2d2a6b; }
-    button.orange { background: #F09644; }
-    button.orange:hover { background: #d07830; }
-    textarea {
-      width: 100%;
-      height: 120px;
-      font-family: monospace;
-      font-size: 12px;
-      padding: 10px;
-      border: 1px solid #ccc;
-      resize: vertical;
-      margin-bottom: 8px;
-    }
-    .log {
-      font-family: monospace;
-      font-size: 12px;
-      color: #555;
-      margin-top: 16px;
-      max-width: 1000px;
-    }
-    .log-entry { padding: 4px 0; border-bottom: 1px solid #eee; }
-    .log-entry.ok { color: #2a7a2a; }
-    .log-entry.err { color: #c0392b; }
-  </style>
-</head>
-<body>
-  <h1>Hugin und Munin Steuerungspanel</h1>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Hugin und Munin Steuerungspanel</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: Arial, sans-serif;
+        background: #f5f5f5;
+        padding: 32px;
+        color: #1e1b4b;
+      }
+      h1 {
+        font-size: 20px;
+        margin-bottom: 24px;
+      }
+      h2 {
+        font-size: 13px;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #888;
+        margin-bottom: 10px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+        max-width: 800px;
+      }
+      .section {
+        background: #fff;
+        border: 1px solid #e0e0e0;
+        padding: 16px;
+      }
+      .section.wide {
+        grid-column: span 2;
+      }
+      .row {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-bottom: 6px;
+      }
+      button {
+        background: #1e1b4b;
+        color: #fff;
+        border: none;
+        padding: 8px 14px;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #2d2a6b;
+      }
+      button.orange {
+        background: #f09644;
+      }
+      button.orange:hover {
+        background: #d07830;
+      }
+      textarea {
+        width: 100%;
+        height: 120px;
+        font-family: monospace;
+        font-size: 12px;
+        padding: 10px;
+        border: 1px solid #ccc;
+        resize: vertical;
+        margin-bottom: 8px;
+      }
+      .log {
+        font-family: monospace;
+        font-size: 12px;
+        color: #555;
+        margin-top: 16px;
+        max-width: 1000px;
+      }
+      .log-entry {
+        padding: 4px 0;
+        border-bottom: 1px solid #eee;
+      }
+      .log-entry.ok {
+        color: #2a7a2a;
+      }
+      .log-entry.err {
+        color: #c0392b;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Hugin und Munin Steuerungspanel</h1>
 
-  <div class="grid">
-    <div class="section">
-      <h2>Pause</h2>
-      <div class="row">
-        <button onclick="sendPause(1)">Pause 1 min</button>
-        <button onclick="sendPause(5)">Pause 5 min</button>
-        <button onclick="sendPause(30)">Pause 30 min</button>
+    <div class="grid">
+      <div class="section">
+        <h2>Pause</h2>
+        <div class="row">
+          <button onclick="sendPause(1)">Pause 1 min</button>
+          <button onclick="sendPause(5)">Pause 5 min</button>
+          <button onclick="sendPause(30)">Pause 30 min</button>
+        </div>
       </div>
-    </div>
 
-    <div class="section">
-      <h2>Chat</h2>
-      <div class="row">
-        <button onclick="testChatStill()">Light ohne Ton</button>
-        <button onclick="testChatDark()">Dark ohne Ton</button>
-        <button onclick="testChatFemale()">Female</button>
-        <button onclick="testChatMale()">Male</button>
+      <div class="section">
+        <h2>Chat</h2>
+        <div class="row">
+          <button onclick="testChatStill()">Light ohne Ton</button>
+          <button onclick="testChatDark()">Dark ohne Ton</button>
+          <button onclick="testChatFemale()">Female</button>
+          <button onclick="testChatMale()">Male</button>
+        </div>
+        <div class="row">
+          <button onclick="testChatSmall()">Schrift Klein</button>
+          <button onclick="testChatLarge()">Schrift Gross</button>
+        </div>
+        <div class="row">
+          <button onclick="testChatPauseShort()">Pause Kurz (schnell testen)</button>
+          <button onclick="testChatPauseLong()">Pause Lang</button>
+          <button onclick="testChatRepeat()">Wiederholung</button>
+        </div>
+        <div class="row">
+          <button onclick="testChatImageShort()">Bilddauer 0.5min</button>
+        </div>
+        <div class="row">
+          <button onclick="testChatNoSound()">Ohne Signalton</button>
+        </div>
       </div>
-      <div class="row">
-        <button onclick="testChatSmall()">Schrift Klein</button>
-        <button onclick="testChatLarge()">Schrift Gross</button>
-      </div>
-      <div class="row">
-        <button onclick="testChatPauseShort()">Pause Kurz (schnell testen)</button>
-        <button onclick="testChatPauseLong()">Pause Lang</button>
-        <button onclick="testChatRepeat()">Wiederholung</button>
-      </div>
-      <div class="row">
-        <button onclick="testChatImageShort()">Bilddauer 0.5min</button>
-      </div>
-      <div class="row">
-        <button onclick="testChatNoSound()">Ohne Signalton</button>
-      </div>
-    </div>
 
-    <div class="section">
-      <h2>Zeit</h2>
-      <div class="row">
-        <button onclick="testTime24()">24h</button>
-        <button onclick="testTime12()">12h</button>
-        <button onclick="testTimeSeconds()">Mit Sekunden</button>
-        <button onclick="testTimeNoDate()">Kein Datum</button>
+      <div class="section">
+        <h2>Zeit</h2>
+        <div class="row">
+          <button onclick="testTime24()">24h</button>
+          <button onclick="testTime12()">12h</button>
+          <button onclick="testTimeSeconds()">Mit Sekunden</button>
+          <button onclick="testTimeNoDate()">Kein Datum</button>
+        </div>
+        <div class="row">
+          <button onclick="testTimeFemale()">Female</button>
+          <button onclick="testTimeMale()">Male</button>
+        </div>
+        <div class="row">
+          <button onclick="testTimeMuted()">Ohne Ton</button>
+          <button onclick="testTimeRepeat()">Wiederholung</button>
+          <button onclick="testTimePauseShort()">Pause Kurz (schnell testen)</button>
+        </div>
+        <div class="row">
+          <button onclick="testTimeNatural()">Zeitansage Natürlich</button>
+          <button onclick="testTimeExact()">Zeitansage Genau</button>
+        </div>
+        <div class="row">
+          <button onclick="testTimeNoSound()">Ohne Signalton</button>
+        </div>
+        <div class="row">
+          <button onclick="testTimeDark()">Dark Mode</button>
+          <button onclick="testTimeDarkAnalog()">Dark Mode Analog</button>
+        </div>
       </div>
-      <div class="row">
-        <button onclick="testTimeFemale()">Female</button>
-        <button onclick="testTimeMale()">Male</button>
-      </div>
-      <div class="row">
-        <button onclick="testTimeMuted()">Ohne Ton</button>
-        <button onclick="testTimeRepeat()">Wiederholung</button>
-        <button onclick="testTimePauseShort()">Pause Kurz (schnell testen)</button>
-      </div>
-      <div class="row">
-        <button onclick="testTimeNatural()">Zeitansage Natürlich</button>
-        <button onclick="testTimeExact()">Zeitansage Genau</button>
-      </div>
-      <div class="row">
-        <button onclick="testTimeNoSound()">Ohne Signalton</button>
-      </div>
-      <div class="row">
-        <button onclick="testTimeDark()">Dark Mode</button>
-        <button onclick="testTimeDarkAnalog()">Dark Mode Analog</button>
-      </div>
-    </div>
 
-    <div class="section">
-      <h2>Routine</h2>
-      <div class="row">
-        <button onclick="testRoutineStill()">Ohne Ton</button>
-        <button onclick="testRoutineTon()">Mit Ton</button>
+      <div class="section">
+        <h2>Routine</h2>
+        <div class="row">
+          <button onclick="testRoutineStill()">Ohne Ton</button>
+          <button onclick="testRoutineTon()">Mit Ton</button>
+        </div>
+        <div class="row">
+          <button onclick="testRoutineSimple()">Einfach</button>
+        </div>
+        <div class="row">
+          <button onclick="testRoutinePauseShort()">Pause Kurz (schnell testen)</button>
+          <button onclick="testRoutinePauseLong()">Pause Lang</button>
+          <button onclick="testRoutineRepeat()">Wiederholung</button>
+        </div>
+        <div class="row">
+          <button onclick="testRoutineNoSound()">Ohne Signalton</button>
+        </div>
+        <div class="row">
+          <button onclick="testRoutineDark()">Dark Mode</button>
+          <button onclick="testRoutineDarkSimple()">Dark Mode Einfach</button>
+        </div>
       </div>
-      <div class="row">
-        <button onclick="testRoutineSimple()">Einfach</button>
-      </div>
-      <div class="row">
-        <button onclick="testRoutinePauseShort()">Pause Kurz (schnell testen)</button>
-        <button onclick="testRoutinePauseLong()">Pause Lang</button>
-        <button onclick="testRoutineRepeat()">Wiederholung</button>
-      </div>
-      <div class="row">
-        <button onclick="testRoutineNoSound()">Ohne Signalton</button>
-      </div>
-      <div class="row">
-        <button onclick="testRoutineDark()">Dark Mode</button>
-        <button onclick="testRoutineDarkSimple()">Dark Mode Einfach</button>
-      </div>
-    </div>
 
-    <div class="section">
-      <h2>Wetter</h2>
-      <div class="row">
-        <button onclick="testWeatherIcon()">Icon</button>
-        <button onclick="testWeatherPhoto()">Naturbild</button>
+      <div class="section">
+        <h2>Wetter</h2>
+        <div class="row">
+          <button onclick="testWeatherIcon()">Icon</button>
+          <button onclick="testWeatherPhoto()">Naturbild</button>
+        </div>
+        <div class="row">
+          <button onclick="testWeatherTemp()">Mit Temperatur</button>
+          <button onclick="testWeatherTomorrow()">Mit Morgen-Ansage</button>
+        </div>
+        <div class="row">
+          <button onclick="testWeatherFemale()">Female</button>
+          <button onclick="testWeatherMale()">Male</button>
+        </div>
+        <div class="row">
+          <button onclick="testWeatherMuted()">Ohne Ton</button>
+          <button onclick="testWeatherRepeat()">Wiederholung</button>
+          <button onclick="testWeatherPauseShort()">Pause Kurz (schnell testen)</button>
+        </div>
+        <div class="row">
+          <button onclick="testWeatherNoSound()">Ohne Signalton</button>
+        </div>
+        <div class="row">
+          <button class="orange" onclick="testWeatherCycle()">
+            Test-Zyklus Icons (jeder Klick = andere Tageszeit/Temperatur/Wetter)
+          </button>
+        </div>
+        <div class="row">
+          <button class="orange" onclick="testWeatherCyclePhoto()">
+            Test-Zyklus Fotos (jeder Klick = andere Tageszeit/Temperatur/Wetter)
+          </button>
+        </div>
       </div>
-      <div class="row">
-        <button onclick="testWeatherTemp()">Mit Temperatur</button>
-        <button onclick="testWeatherTomorrow()">Mit Morgen-Ansage</button>
-      </div>
-      <div class="row">
-        <button onclick="testWeatherFemale()">Female</button>
-        <button onclick="testWeatherMale()">Male</button>
-      </div>
-      <div class="row">
-        <button onclick="testWeatherMuted()">Ohne Ton</button>
-        <button onclick="testWeatherRepeat()">Wiederholung</button>
-        <button onclick="testWeatherPauseShort()">Pause Kurz (schnell testen)</button>
-      </div>
-      <div class="row">
-        <button onclick="testWeatherNoSound()">Ohne Signalton</button>
-      </div>
-      <div class="row">
-        <button class="orange" onclick="testWeatherCycle()">Test-Zyklus Icons (jeder Klick = andere Tageszeit/Temperatur/Wetter)</button>
-      </div>
-      <div class="row">
-        <button class="orange" onclick="testWeatherCyclePhoto()">Test-Zyklus Fotos (jeder Klick = andere Tageszeit/Temperatur/Wetter)</button>
-      </div>
-    </div>
+      <div class="section">
+        <h2>Sammlung</h2>
 
-    <div class="section wide">
-      <h2>Custom JSON</h2>
-      <textarea id="json-input">{
+        <div class="row">
+          <button onclick="testCollectionImages()">Bilder</button>
+          <button onclick="testCollectionAudio()">Audio</button>
+        </div>
+
+        <div class="row">
+          <button onclick="testCollectionSilent()">Stille</button>
+          <button onclick="testCollectionCaption()">Bildunterschrift</button>
+          <button onclick="testCollectionPlaylist()">Playlist</button>
+        </div>
+
+        <div class="row">
+          <button onclick="testCollectionFemale()">Female</button>
+          <button onclick="testCollectionMale()">Male</button>
+        </div>
+
+        <div class="row">
+          <button onclick="testCollectionReadingSlow()">Langsam</button>
+          <button onclick="testCollectionReadingFast()">Schnell</button>
+        </div>
+
+        <div class="row">
+          <button onclick="testCollectionPauseShort()">Pause Kurz</button>
+          <button onclick="testCollectionPauseLong()">Pause Lang</button>
+          <button onclick="testCollectionRepeat()">Wiederholung</button>
+        </div>
+
+        <div class="row">
+          <button onclick="testCollectionImageShort()">Bilddauer 0.5min</button>
+          <button onclick="testCollectionImageLong()">Bilddauer 5min</button>
+        </div>
+
+        <div class="row">
+          <button onclick="testCollectionShowCaptionText()">Bildunterschrift anzeigen</button>
+        </div>
+
+        <div class="row">
+          <button onclick="testCollectionNoSound()">Ohne Signalton</button>
+        </div>
+      </div>
+      <div class="section wide">
+        <h2>Custom JSON</h2>
+        <textarea id="json-input">
+{
   "command": "loadModule",
   "type": "Time",
   "module_id": "00000000-0000-0000-0003-000000000002",
@@ -194,327 +272,896 @@
   "showSeconds": false,
   "showDate": true,
   "interval": 30
-}</textarea>
-      <div class="row">
-        <button class="orange" onclick="sendCustom()">Send</button>
+}</textarea
+        >
+        <div class="row">
+          <button class="orange" onclick="sendCustom()">Send</button>
+        </div>
       </div>
     </div>
-  </div>
 
-  <div class="log" id="log"></div>
+    <div class="log" id="log"></div>
 
-  <script>
-    const CHAT_ID    = "00000000-0000-0000-0003-000000000003";
-    const TIME_ID    = "00000000-0000-0000-0003-000000000002";
-    const ROUTINE_ID = "00000000-0000-0000-0003-000000000001";
-    const WEATHER_ID = "00000000-0000-0000-0003-000000000004";
+    <script>
+      const CHAT_ID = '00000000-0000-0000-0003-000000000003'
+      const TIME_ID = '00000000-0000-0000-0003-000000000002'
+      const ROUTINE_ID = '00000000-0000-0000-0003-000000000001'
+      const WEATHER_ID = '00000000-0000-0000-0003-000000000004'
+      const COLLECTION_ID = '00000000-0000-0000-0003-000000000005'
 
-    async function send(msg) {
-      try {
-        const res = await fetch("http://localhost:3001", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(msg),
-        });
-        if (res.ok) {
-          log(`Gesendet: ${JSON.stringify(msg)}`, "ok");
-        } else {
-          log(`Serverfehler: ${res.status}`, "err");
+      async function send(msg) {
+        try {
+          const res = await fetch('http://localhost:3001', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(msg),
+          })
+          if (res.ok) {
+            log(`Gesendet: ${JSON.stringify(msg)}`, 'ok')
+          } else {
+            log(`Serverfehler: ${res.status}`, 'err')
+          }
+        } catch (e) {
+          log(
+            `Verbindung zu http://localhost:3001 fehlgeschlagen — läuft die App? (${e.message})`,
+            'err',
+          )
         }
-      } catch (e) {
-        log(`Verbindung zu http://localhost:3001 fehlgeschlagen — läuft die App? (${e.message})`, "err");
       }
-    }
 
-    function sendPause(minutes) {
-      send({ command: "pause", duration: minutes });
-    }
-
-    // ── Chat ──────────────────────────────────────────────────────────────
-
-    function testChatStill() {
-      send({ command: "loadModule", type: "Chat", module_id: CHAT_ID,
-        duration: 300000, audio: false, theme: "light", fontSize: "large" });
-    }
-
-    function testChatDark() {
-      send({ command: "loadModule", type: "Chat", module_id: CHAT_ID,
-        duration: 300000, audio: false, theme: "dark", fontSize: "large" });
-    }
-
-    function testChatFemale() {
-      send({ command: "loadModule", type: "Chat", module_id: CHAT_ID,
-        duration: 300000, audio: true, voice: "female", theme: "dark", fontSize: "large" });
-    }
-
-    function testChatMale() {
-      send({ command: "loadModule", type: "Chat", module_id: CHAT_ID,
-        duration: 300000, audio: true, voice: "male", theme: "dark", fontSize: "large" });
-    }
-
-    function testChatSmall() {
-      send({ command: "loadModule", type: "Chat", module_id: CHAT_ID,
-        duration: 300000, audio: false, theme: "light", fontSize: "small" });
-    }
-
-    function testChatLarge() {
-      send({ command: "loadModule", type: "Chat", module_id: CHAT_ID,
-        duration: 300000, audio: false, theme: "light", fontSize: "large" });
-    }
-
-    function testChatPauseShort() {
-      // Short scale (3s) so the pause before the first message and between
-      // messages is quick to hear without waiting through the long default.
-      send({ command: "loadModule", type: "Chat", module_id: CHAT_ID,
-        duration: 300000, audio: true, voice: "female", theme: "light", fontSize: "large", pause: "short" });
-    }
-
-    function testChatPauseLong() {
-      send({ command: "loadModule", type: "Chat", module_id: CHAT_ID,
-        duration: 300000, audio: true, voice: "female", theme: "light", fontSize: "large", pause: "long" });
-    }
-
-    function testChatRepeat() {
-      send({ command: "loadModule", type: "Chat", module_id: CHAT_ID,
-        duration: 300000, audio: true, voice: "female", theme: "light", fontSize: "large", pause: "short", repeat: true });
-    }
-
-    function testChatImageShort() {
-      // Needs an image-type message in the module's data to actually see —
-      // just verifies the setting is picked up (0.5min = 30s instead of the 1min default).
-      send({ command: "loadModule", type: "Chat", module_id: CHAT_ID,
-        duration: 300000, audio: false, theme: "light", fontSize: "large", imageDuration: 0.5 });
-    }
-
-    function testChatNoSound() {
-      // Every other Chat button omits transitionSound, so the default (on)
-      // already gets exercised by them — this checks the explicit off path.
-      send({ command: "loadModule", type: "Chat", module_id: CHAT_ID,
-        duration: 300000, audio: false, theme: "light", fontSize: "large", transitionSound: false });
-    }
-
-    // ── Zeit ──────────────────────────────────────────────────────────────
-
-    function testTime24() {
-      send({ command: "loadModule", type: "Time", module_id: TIME_ID,
-        duration: 300000, format: "HH:mm", showSeconds: false, showDate: true, interval: 30 });
-    }
-
-    function testTime12() {
-      send({ command: "loadModule", type: "Time", module_id: TIME_ID,
-        duration: 300000, format: "hh:mm a", showSeconds: false, showDate: true, interval: 30 });
-    }
-
-    function testTimeSeconds() {
-      send({ command: "loadModule", type: "Time", module_id: TIME_ID,
-        duration: 300000, format: "HH:mm", showSeconds: true, showDate: true, interval: 30 });
-    }
-
-    function testTimeNoDate() {
-      send({ command: "loadModule", type: "Time", module_id: TIME_ID,
-        duration: 300000, format: "HH:mm", showSeconds: false, showDate: false, interval: 30 });
-    }
-
-    function testTimeFemale() {
-      send({ command: "loadModule", type: "Time", module_id: TIME_ID,
-        duration: 300000, format: "HH:mm", showSeconds: false, showDate: true, interval: 30, voice: "female" });
-    }
-
-    function testTimeMale() {
-      send({ command: "loadModule", type: "Time", module_id: TIME_ID,
-        duration: 300000, format: "HH:mm", showSeconds: false, showDate: true, interval: 30, voice: "male" });
-    }
-
-    function testTimeMuted() {
-      send({ command: "loadModule", type: "Time", module_id: TIME_ID,
-        duration: 300000, format: "HH:mm", showSeconds: false, showDate: true, interval: 30, audio: false });
-    }
-
-    function testTimeRepeat() {
-      send({ command: "loadModule", type: "Time", module_id: TIME_ID,
-        duration: 300000, format: "HH:mm", showSeconds: false, showDate: true, interval: 30, audio: true, repeat: true });
-    }
-
-    function testTimePauseShort() {
-      // Uhr just got its own Sprechpause field (start-of-module pause +
-      // repeat gap) — short scale (3s) to verify both quickly.
-      send({ command: "loadModule", type: "Time", module_id: TIME_ID,
-        duration: 300000, format: "HH:mm", showSeconds: false, showDate: true, interval: 30,
-        audio: true, pause: "short", repeat: true });
-    }
-
-    function testTimeNatural() {
-      // e.g. 21:47 should round to 21:45 and say "Viertel vor zehn" (12h),
-      // regardless of the 24h visual format below.
-      send({ command: "loadModule", type: "Time", module_id: TIME_ID,
-        duration: 300000, format: "HH:mm", showSeconds: false, showDate: true, interval: 30,
-        audio: true, timeAnnouncement: "natural" });
-    }
-
-    function testTimeExact() {
-      // e.g. 21:47 should say "einundzwanzig Uhr siebenundvierzig" (24h,
-      // unrounded), regardless of the 24h visual format below.
-      send({ command: "loadModule", type: "Time", module_id: TIME_ID,
-        duration: 300000, format: "HH:mm", showSeconds: false, showDate: true, interval: 30,
-        audio: true, timeAnnouncement: "exact" });
-    }
-
-    function testTimeNoSound() {
-      send({ command: "loadModule", type: "Time", module_id: TIME_ID,
-        duration: 300000, format: "HH:mm", showSeconds: false, showDate: true, interval: 30,
-        audio: false, transitionSound: false });
-    }
-
-    function testTimeDark() {
-      send({ command: "loadModule", type: "Time", module_id: TIME_ID,
-        duration: 300000, format: "HH:mm", showSeconds: false, showDate: true, interval: 30,
-        audio: false, clockType: "digital", theme: "dark" });
-    }
-
-    function testTimeDarkAnalog() {
-      send({ command: "loadModule", type: "Time", module_id: TIME_ID,
-        duration: 300000, showSeconds: true, showDate: true, interval: 30,
-        audio: false, clockType: "analog", theme: "dark" });
-    }
-
-    // ── Routine ───────────────────────────────────────────────────────────
-
-    function testRoutineStill() {
-      send({ command: "loadModule", type: "Routine", module_id: ROUTINE_ID,
-        duration: 600000, audio: false });
-    }
-
-    function testRoutineTon() {
-      send({ command: "loadModule", type: "Routine", module_id: ROUTINE_ID,
-        duration: 600000, audio: true, voice: "male" });
-    }
-
-    function testRoutineSimple() {
-      send({ command: "loadModule", type: "Routine", module_id: ROUTINE_ID,
-        duration: 600000, audio: true, voice: "female", mode: "simple" });
-    }
-
-    function testRoutinePauseShort() {
-      // Short scale (3s) so the module-start pause is quick to hear.
-      send({ command: "loadModule", type: "Routine", module_id: ROUTINE_ID,
-        duration: 600000, audio: true, voice: "female", pause: "short" });
-    }
-
-    function testRoutinePauseLong() {
-      send({ command: "loadModule", type: "Routine", module_id: ROUTINE_ID,
-        duration: 600000, audio: true, voice: "female", pause: "long" });
-    }
-
-    function testRoutineRepeat() {
-      send({ command: "loadModule", type: "Routine", module_id: ROUTINE_ID,
-        duration: 600000, audio: true, voice: "female", pause: "short", repeat: true });
-    }
-
-    function testRoutineNoSound() {
-      send({ command: "loadModule", type: "Routine", module_id: ROUTINE_ID,
-        duration: 600000, audio: false, transitionSound: false });
-    }
-
-    function testRoutineDark() {
-      send({ command: "loadModule", type: "Routine", module_id: ROUTINE_ID,
-        duration: 600000, audio: false, mode: "overview", theme: "dark" });
-    }
-
-    function testRoutineDarkSimple() {
-      send({ command: "loadModule", type: "Routine", module_id: ROUTINE_ID,
-        duration: 600000, audio: false, mode: "simple", theme: "dark" });
-    }
-
-    // ── Wetter ────────────────────────────────────────────────────────────
-
-    function testWeatherIcon() {
-      send({ command: "loadModule", type: "Weather", module_id: WEATHER_ID,
-        duration: 300000, audio: false, imageSource: "icon" });
-    }
-
-    function testWeatherPhoto() {
-      send({ command: "loadModule", type: "Weather", module_id: WEATHER_ID,
-        duration: 300000, audio: false, imageSource: "photo" });
-    }
-
-    function testWeatherTemp() {
-      send({ command: "loadModule", type: "Weather", module_id: WEATHER_ID,
-        duration: 300000, audio: false, imageSource: "icon", showTemperature: true });
-    }
-
-    function testWeatherTomorrow() {
-      send({ command: "loadModule", type: "Weather", module_id: WEATHER_ID,
-        duration: 300000, audio: true, voice: "female", announceTomorrow: true });
-    }
-
-    function testWeatherFemale() {
-      send({ command: "loadModule", type: "Weather", module_id: WEATHER_ID,
-        duration: 300000, audio: true, voice: "female" });
-    }
-
-    function testWeatherMale() {
-      send({ command: "loadModule", type: "Weather", module_id: WEATHER_ID,
-        duration: 300000, audio: true, voice: "male" });
-    }
-
-    function testWeatherMuted() {
-      send({ command: "loadModule", type: "Weather", module_id: WEATHER_ID,
-        duration: 300000, audio: false });
-    }
-
-    function testWeatherRepeat() {
-      send({ command: "loadModule", type: "Weather", module_id: WEATHER_ID,
-        duration: 300000, audio: true, voice: "female", pause: "short", repeat: true });
-    }
-
-    function testWeatherPauseShort() {
-      // Short scale (3s) so the module-start pause is quick to hear.
-      send({ command: "loadModule", type: "Weather", module_id: WEATHER_ID,
-        duration: 300000, audio: true, voice: "female", pause: "short" });
-    }
-
-    function testWeatherNoSound() {
-      send({ command: "loadModule", type: "Weather", module_id: WEATHER_ID,
-        duration: 300000, audio: false, transitionSound: false });
-    }
-
-    function testWeatherCycle() {
-      // testCycle steps through a fixed list of synthetic time/temperature/
-      // weather states (weatherTestScenarios.ts), a new one per module load —
-      // click repeatedly to page through all of them. Shares its cursor with
-      // testWeatherCyclePhoto() below (same underlying scenario list), so
-      // interleaving clicks between the two just continues the sequence.
-      send({ command: "loadModule", type: "Weather", module_id: WEATHER_ID,
-        duration: 300000, audio: true, voice: "female", pause: "short",
-        imageSource: "icon", showTemperature: true, announceTomorrow: true, testCycle: true });
-    }
-
-    function testWeatherCyclePhoto() {
-      // Same test cycle, but with imageSource "photo" — use this one to
-      // check the real JPGs in weather-photos/ rather than the icons.
-      send({ command: "loadModule", type: "Weather", module_id: WEATHER_ID,
-        duration: 300000, audio: true, voice: "female", pause: "short",
-        imageSource: "photo", showTemperature: true, announceTomorrow: true, testCycle: true });
-    }
-
-    // ── Custom ────────────────────────────────────────────────────────────
-
-    function sendCustom() {
-      try {
-        const msg = JSON.parse(document.getElementById("json-input").value);
-        send(msg);
-      } catch (e) {
-        log(`Invalid JSON: ${e.message}`, "err");
+      function sendPause(minutes) {
+        send({ command: 'pause', duration: minutes })
       }
-    }
 
-    function log(text, type = "") {
-      const el = document.getElementById("log");
-      const entry = document.createElement("div");
-      entry.className = `log-entry ${type}`;
-      entry.textContent = `${new Date().toLocaleTimeString()} — ${text}`;
-      el.prepend(entry);
-    }
-  </script>
-</body>
+      // ── Chat ──────────────────────────────────────────────────────────────
+
+      function testChatStill() {
+        send({
+          command: 'loadModule',
+          type: 'Chat',
+          module_id: CHAT_ID,
+          duration: 300000,
+          audio: false,
+          theme: 'light',
+          fontSize: 'large',
+        })
+      }
+
+      function testChatDark() {
+        send({
+          command: 'loadModule',
+          type: 'Chat',
+          module_id: CHAT_ID,
+          duration: 300000,
+          audio: false,
+          theme: 'dark',
+          fontSize: 'large',
+        })
+      }
+
+      function testChatFemale() {
+        send({
+          command: 'loadModule',
+          type: 'Chat',
+          module_id: CHAT_ID,
+          duration: 300000,
+          audio: true,
+          voice: 'female',
+          theme: 'dark',
+          fontSize: 'large',
+        })
+      }
+
+      function testChatMale() {
+        send({
+          command: 'loadModule',
+          type: 'Chat',
+          module_id: CHAT_ID,
+          duration: 300000,
+          audio: true,
+          voice: 'male',
+          theme: 'dark',
+          fontSize: 'large',
+        })
+      }
+
+      function testChatSmall() {
+        send({
+          command: 'loadModule',
+          type: 'Chat',
+          module_id: CHAT_ID,
+          duration: 300000,
+          audio: false,
+          theme: 'light',
+          fontSize: 'small',
+        })
+      }
+
+      function testChatLarge() {
+        send({
+          command: 'loadModule',
+          type: 'Chat',
+          module_id: CHAT_ID,
+          duration: 300000,
+          audio: false,
+          theme: 'light',
+          fontSize: 'large',
+        })
+      }
+
+      function testChatPauseShort() {
+        // Short scale (3s) so the pause before the first message and between
+        // messages is quick to hear without waiting through the long default.
+        send({
+          command: 'loadModule',
+          type: 'Chat',
+          module_id: CHAT_ID,
+          duration: 300000,
+          audio: true,
+          voice: 'female',
+          theme: 'light',
+          fontSize: 'large',
+          pause: 'short',
+        })
+      }
+
+      function testChatPauseLong() {
+        send({
+          command: 'loadModule',
+          type: 'Chat',
+          module_id: CHAT_ID,
+          duration: 300000,
+          audio: true,
+          voice: 'female',
+          theme: 'light',
+          fontSize: 'large',
+          pause: 'long',
+        })
+      }
+
+      function testChatRepeat() {
+        send({
+          command: 'loadModule',
+          type: 'Chat',
+          module_id: CHAT_ID,
+          duration: 300000,
+          audio: true,
+          voice: 'female',
+          theme: 'light',
+          fontSize: 'large',
+          pause: 'short',
+          repeat: true,
+        })
+      }
+
+      function testChatImageShort() {
+        // Needs an image-type message in the module's data to actually see —
+        // just verifies the setting is picked up (0.5min = 30s instead of the 1min default).
+        send({
+          command: 'loadModule',
+          type: 'Chat',
+          module_id: CHAT_ID,
+          duration: 300000,
+          audio: false,
+          theme: 'light',
+          fontSize: 'large',
+          imageDuration: 0.5,
+        })
+      }
+
+      function testChatNoSound() {
+        // Every other Chat button omits transitionSound, so the default (on)
+        // already gets exercised by them — this checks the explicit off path.
+        send({
+          command: 'loadModule',
+          type: 'Chat',
+          module_id: CHAT_ID,
+          duration: 300000,
+          audio: false,
+          theme: 'light',
+          fontSize: 'large',
+          transitionSound: false,
+        })
+      }
+
+      // ── Sammlung ───────────────────────────────────────────────────────────
+
+      function testCollectionImages() {
+        send({
+          command: 'loadModule',
+          type: 'Sammlung',
+          module_id: COLLECTION_ID,
+          duration: 300000,
+          mode: 'image',
+          collection: 'Testbilder',
+          imageAudioMode: 'silent',
+        })
+      }
+
+      function testCollectionAudio() {
+        send({
+          command: 'loadModule',
+          type: 'Sammlung',
+          module_id: COLLECTION_ID,
+          duration: 300000,
+          mode: 'audio',
+          collection: 'Testmusik',
+        })
+      }
+
+      function testCollectionSilent() {
+        send({
+          command: 'loadModule',
+          type: 'Sammlung',
+          module_id: COLLECTION_ID,
+          duration: 300000,
+          mode: 'image',
+          collection: 'Testbilder',
+          imageAudioMode: 'silent',
+        })
+      }
+
+      function testCollectionCaption() {
+        send({
+          command: 'loadModule',
+          type: 'Sammlung',
+          module_id: COLLECTION_ID,
+          duration: 300000,
+          mode: 'image',
+          collection: 'Testbilder',
+          imageAudioMode: 'caption',
+          voice: 'female',
+          readingSpeed: 'normal',
+          pause: 'short',
+          repeat: true,
+        })
+      }
+
+      function testCollectionPlaylist() {
+        send({
+          command: 'loadModule',
+          type: 'Sammlung',
+          module_id: COLLECTION_ID,
+          duration: 300000,
+          mode: 'image',
+          collection: 'Testbilder',
+          imageAudioMode: 'playlist',
+          backgroundCollection: 'Testmusik',
+        })
+      }
+
+      function testCollectionFemale() {
+        send({
+          command: 'loadModule',
+          type: 'Sammlung',
+          module_id: COLLECTION_ID,
+          duration: 300000,
+          mode: 'image',
+          collection: 'Testbilder',
+          imageAudioMode: 'caption',
+          voice: 'female',
+        })
+      }
+
+      function testCollectionMale() {
+        send({
+          command: 'loadModule',
+          type: 'Sammlung',
+          module_id: COLLECTION_ID,
+          duration: 300000,
+          mode: 'image',
+          collection: 'Testbilder',
+          imageAudioMode: 'caption',
+          voice: 'male',
+        })
+      }
+
+      function testCollectionReadingSlow() {
+        send({
+          command: 'loadModule',
+          type: 'Sammlung',
+          module_id: COLLECTION_ID,
+          duration: 300000,
+          mode: 'image',
+          collection: 'Testbilder',
+          imageAudioMode: 'caption',
+          readingSpeed: 'slow',
+        })
+      }
+
+      function testCollectionReadingFast() {
+        send({
+          command: 'loadModule',
+          type: 'Sammlung',
+          module_id: COLLECTION_ID,
+          duration: 300000,
+          mode: 'image',
+          collection: 'Testbilder',
+          imageAudioMode: 'caption',
+          readingSpeed: 'fast',
+        })
+      }
+
+      function testCollectionPauseShort() {
+        send({
+          command: 'loadModule',
+          type: 'Sammlung',
+          module_id: COLLECTION_ID,
+          duration: 300000,
+          mode: 'image',
+          collection: 'Testbilder',
+          imageAudioMode: 'caption',
+          pause: 'short',
+        })
+      }
+
+      function testCollectionPauseLong() {
+        send({
+          command: 'loadModule',
+          type: 'Sammlung',
+          module_id: COLLECTION_ID,
+          duration: 300000,
+          mode: 'image',
+          collection: 'Testbilder',
+          imageAudioMode: 'caption',
+          pause: 'long',
+        })
+      }
+
+      function testCollectionRepeat() {
+        send({
+          command: 'loadModule',
+          type: 'Sammlung',
+          module_id: COLLECTION_ID,
+          duration: 300000,
+          mode: 'image',
+          collection: 'Testbilder',
+          imageAudioMode: 'caption',
+          pause: 'short',
+          repeat: true,
+        })
+      }
+
+      function testCollectionImageShort() {
+        send({
+          command: 'loadModule',
+          type: 'Sammlung',
+          module_id: COLLECTION_ID,
+          duration: 300000,
+          mode: 'image',
+          collection: 'Testbilder',
+          imageDuration: 0.5,
+        })
+      }
+
+      function testCollectionImageLong() {
+        send({
+          command: 'loadModule',
+          type: 'Sammlung',
+          module_id: COLLECTION_ID,
+          duration: 300000,
+          mode: 'image',
+          collection: 'Testbilder',
+          imageDuration: 5,
+        })
+      }
+
+      function testCollectionShowCaptionText() {
+        send({
+          command: 'loadModule',
+          type: 'Sammlung',
+          module_id: COLLECTION_ID,
+          duration: 300000,
+          mode: 'image',
+          collection: 'Testbilder',
+          imageAudioMode: 'caption',
+          showCaptionText: true,
+        })
+      }
+
+      function testCollectionNoSound() {
+        send({
+          command: 'loadModule',
+          type: 'Sammlung',
+          module_id: COLLECTION_ID,
+          duration: 300000,
+          mode: 'image',
+          collection: 'Testbilder',
+          transitionSound: false,
+        })
+      }
+
+      // ── Zeit ──────────────────────────────────────────────────────────────
+
+      function testTime24() {
+        send({
+          command: 'loadModule',
+          type: 'Time',
+          module_id: TIME_ID,
+          duration: 300000,
+          format: 'HH:mm',
+          showSeconds: false,
+          showDate: true,
+          interval: 30,
+        })
+      }
+
+      function testTime12() {
+        send({
+          command: 'loadModule',
+          type: 'Time',
+          module_id: TIME_ID,
+          duration: 300000,
+          format: 'hh:mm a',
+          showSeconds: false,
+          showDate: true,
+          interval: 30,
+        })
+      }
+
+      function testTimeSeconds() {
+        send({
+          command: 'loadModule',
+          type: 'Time',
+          module_id: TIME_ID,
+          duration: 300000,
+          format: 'HH:mm',
+          showSeconds: true,
+          showDate: true,
+          interval: 30,
+        })
+      }
+
+      function testTimeNoDate() {
+        send({
+          command: 'loadModule',
+          type: 'Time',
+          module_id: TIME_ID,
+          duration: 300000,
+          format: 'HH:mm',
+          showSeconds: false,
+          showDate: false,
+          interval: 30,
+        })
+      }
+
+      function testTimeFemale() {
+        send({
+          command: 'loadModule',
+          type: 'Time',
+          module_id: TIME_ID,
+          duration: 300000,
+          format: 'HH:mm',
+          showSeconds: false,
+          showDate: true,
+          interval: 30,
+          voice: 'female',
+        })
+      }
+
+      function testTimeMale() {
+        send({
+          command: 'loadModule',
+          type: 'Time',
+          module_id: TIME_ID,
+          duration: 300000,
+          format: 'HH:mm',
+          showSeconds: false,
+          showDate: true,
+          interval: 30,
+          voice: 'male',
+        })
+      }
+
+      function testTimeMuted() {
+        send({
+          command: 'loadModule',
+          type: 'Time',
+          module_id: TIME_ID,
+          duration: 300000,
+          format: 'HH:mm',
+          showSeconds: false,
+          showDate: true,
+          interval: 30,
+          audio: false,
+        })
+      }
+
+      function testTimeRepeat() {
+        send({
+          command: 'loadModule',
+          type: 'Time',
+          module_id: TIME_ID,
+          duration: 300000,
+          format: 'HH:mm',
+          showSeconds: false,
+          showDate: true,
+          interval: 30,
+          audio: true,
+          repeat: true,
+        })
+      }
+
+      function testTimePauseShort() {
+        // Uhr just got its own Sprechpause field (start-of-module pause +
+        // repeat gap) — short scale (3s) to verify both quickly.
+        send({
+          command: 'loadModule',
+          type: 'Time',
+          module_id: TIME_ID,
+          duration: 300000,
+          format: 'HH:mm',
+          showSeconds: false,
+          showDate: true,
+          interval: 30,
+          audio: true,
+          pause: 'short',
+          repeat: true,
+        })
+      }
+
+      function testTimeNatural() {
+        // e.g. 21:47 should round to 21:45 and say "Viertel vor zehn" (12h),
+        // regardless of the 24h visual format below.
+        send({
+          command: 'loadModule',
+          type: 'Time',
+          module_id: TIME_ID,
+          duration: 300000,
+          format: 'HH:mm',
+          showSeconds: false,
+          showDate: true,
+          interval: 30,
+          audio: true,
+          timeAnnouncement: 'natural',
+        })
+      }
+
+      function testTimeExact() {
+        // e.g. 21:47 should say "einundzwanzig Uhr siebenundvierzig" (24h,
+        // unrounded), regardless of the 24h visual format below.
+        send({
+          command: 'loadModule',
+          type: 'Time',
+          module_id: TIME_ID,
+          duration: 300000,
+          format: 'HH:mm',
+          showSeconds: false,
+          showDate: true,
+          interval: 30,
+          audio: true,
+          timeAnnouncement: 'exact',
+        })
+      }
+
+      function testTimeNoSound() {
+        send({
+          command: 'loadModule',
+          type: 'Time',
+          module_id: TIME_ID,
+          duration: 300000,
+          format: 'HH:mm',
+          showSeconds: false,
+          showDate: true,
+          interval: 30,
+          audio: false,
+          transitionSound: false,
+        })
+      }
+
+      function testTimeDark() {
+        send({
+          command: 'loadModule',
+          type: 'Time',
+          module_id: TIME_ID,
+          duration: 300000,
+          format: 'HH:mm',
+          showSeconds: false,
+          showDate: true,
+          interval: 30,
+          audio: false,
+          clockType: 'digital',
+          theme: 'dark',
+        })
+      }
+
+      function testTimeDarkAnalog() {
+        send({
+          command: 'loadModule',
+          type: 'Time',
+          module_id: TIME_ID,
+          duration: 300000,
+          showSeconds: true,
+          showDate: true,
+          interval: 30,
+          audio: false,
+          clockType: 'analog',
+          theme: 'dark',
+        })
+      }
+
+      // ── Routine ───────────────────────────────────────────────────────────
+
+      function testRoutineStill() {
+        send({
+          command: 'loadModule',
+          type: 'Routine',
+          module_id: ROUTINE_ID,
+          duration: 600000,
+          audio: false,
+        })
+      }
+
+      function testRoutineTon() {
+        send({
+          command: 'loadModule',
+          type: 'Routine',
+          module_id: ROUTINE_ID,
+          duration: 600000,
+          audio: true,
+          voice: 'male',
+        })
+      }
+
+      function testRoutineSimple() {
+        send({
+          command: 'loadModule',
+          type: 'Routine',
+          module_id: ROUTINE_ID,
+          duration: 600000,
+          audio: true,
+          voice: 'female',
+          mode: 'simple',
+        })
+      }
+
+      function testRoutinePauseShort() {
+        // Short scale (3s) so the module-start pause is quick to hear.
+        send({
+          command: 'loadModule',
+          type: 'Routine',
+          module_id: ROUTINE_ID,
+          duration: 600000,
+          audio: true,
+          voice: 'female',
+          pause: 'short',
+        })
+      }
+
+      function testRoutinePauseLong() {
+        send({
+          command: 'loadModule',
+          type: 'Routine',
+          module_id: ROUTINE_ID,
+          duration: 600000,
+          audio: true,
+          voice: 'female',
+          pause: 'long',
+        })
+      }
+
+      function testRoutineRepeat() {
+        send({
+          command: 'loadModule',
+          type: 'Routine',
+          module_id: ROUTINE_ID,
+          duration: 600000,
+          audio: true,
+          voice: 'female',
+          pause: 'short',
+          repeat: true,
+        })
+      }
+
+      function testRoutineNoSound() {
+        send({
+          command: 'loadModule',
+          type: 'Routine',
+          module_id: ROUTINE_ID,
+          duration: 600000,
+          audio: false,
+          transitionSound: false,
+        })
+      }
+
+      function testRoutineDark() {
+        send({
+          command: 'loadModule',
+          type: 'Routine',
+          module_id: ROUTINE_ID,
+          duration: 600000,
+          audio: false,
+          mode: 'overview',
+          theme: 'dark',
+        })
+      }
+
+      function testRoutineDarkSimple() {
+        send({
+          command: 'loadModule',
+          type: 'Routine',
+          module_id: ROUTINE_ID,
+          duration: 600000,
+          audio: false,
+          mode: 'simple',
+          theme: 'dark',
+        })
+      }
+
+      // ── Wetter ────────────────────────────────────────────────────────────
+
+      function testWeatherIcon() {
+        send({
+          command: 'loadModule',
+          type: 'Weather',
+          module_id: WEATHER_ID,
+          duration: 300000,
+          audio: false,
+          imageSource: 'icon',
+        })
+      }
+
+      function testWeatherPhoto() {
+        send({
+          command: 'loadModule',
+          type: 'Weather',
+          module_id: WEATHER_ID,
+          duration: 300000,
+          audio: false,
+          imageSource: 'photo',
+        })
+      }
+
+      function testWeatherTemp() {
+        send({
+          command: 'loadModule',
+          type: 'Weather',
+          module_id: WEATHER_ID,
+          duration: 300000,
+          audio: false,
+          imageSource: 'icon',
+          showTemperature: true,
+        })
+      }
+
+      function testWeatherTomorrow() {
+        send({
+          command: 'loadModule',
+          type: 'Weather',
+          module_id: WEATHER_ID,
+          duration: 300000,
+          audio: true,
+          voice: 'female',
+          announceTomorrow: true,
+        })
+      }
+
+      function testWeatherFemale() {
+        send({
+          command: 'loadModule',
+          type: 'Weather',
+          module_id: WEATHER_ID,
+          duration: 300000,
+          audio: true,
+          voice: 'female',
+        })
+      }
+
+      function testWeatherMale() {
+        send({
+          command: 'loadModule',
+          type: 'Weather',
+          module_id: WEATHER_ID,
+          duration: 300000,
+          audio: true,
+          voice: 'male',
+        })
+      }
+
+      function testWeatherMuted() {
+        send({
+          command: 'loadModule',
+          type: 'Weather',
+          module_id: WEATHER_ID,
+          duration: 300000,
+          audio: false,
+        })
+      }
+
+      function testWeatherRepeat() {
+        send({
+          command: 'loadModule',
+          type: 'Weather',
+          module_id: WEATHER_ID,
+          duration: 300000,
+          audio: true,
+          voice: 'female',
+          pause: 'short',
+          repeat: true,
+        })
+      }
+
+      function testWeatherPauseShort() {
+        // Short scale (3s) so the module-start pause is quick to hear.
+        send({
+          command: 'loadModule',
+          type: 'Weather',
+          module_id: WEATHER_ID,
+          duration: 300000,
+          audio: true,
+          voice: 'female',
+          pause: 'short',
+        })
+      }
+
+      function testWeatherNoSound() {
+        send({
+          command: 'loadModule',
+          type: 'Weather',
+          module_id: WEATHER_ID,
+          duration: 300000,
+          audio: false,
+          transitionSound: false,
+        })
+      }
+
+      function testWeatherCycle() {
+        // testCycle steps through a fixed list of synthetic time/temperature/
+        // weather states (weatherTestScenarios.ts), a new one per module load —
+        // click repeatedly to page through all of them. Shares its cursor with
+        // testWeatherCyclePhoto() below (same underlying scenario list), so
+        // interleaving clicks between the two just continues the sequence.
+        send({
+          command: 'loadModule',
+          type: 'Weather',
+          module_id: WEATHER_ID,
+          duration: 300000,
+          audio: true,
+          voice: 'female',
+          pause: 'short',
+          imageSource: 'icon',
+          showTemperature: true,
+          announceTomorrow: true,
+          testCycle: true,
+        })
+      }
+
+      function testWeatherCyclePhoto() {
+        // Same test cycle, but with imageSource "photo" — use this one to
+        // check the real JPGs in weather-photos/ rather than the icons.
+        send({
+          command: 'loadModule',
+          type: 'Weather',
+          module_id: WEATHER_ID,
+          duration: 300000,
+          audio: true,
+          voice: 'female',
+          pause: 'short',
+          imageSource: 'photo',
+          showTemperature: true,
+          announceTomorrow: true,
+          testCycle: true,
+        })
+      }
+
+      // ── Custom ────────────────────────────────────────────────────────────
+
+      function sendCustom() {
+        try {
+          const msg = JSON.parse(document.getElementById('json-input').value)
+          send(msg)
+        } catch (e) {
+          log(`Invalid JSON: ${e.message}`, 'err')
+        }
+      }
+
+      function log(text, type = '') {
+        const el = document.getElementById('log')
+        const entry = document.createElement('div')
+        entry.className = `log-entry ${type}`
+        entry.textContent = `${new Date().toLocaleTimeString()} — ${text}`
+        el.prepend(entry)
+      }
+    </script>
+  </body>
 </html>
