@@ -70,4 +70,18 @@ export interface WeatherProps extends BaseModule {
   testCycle?: boolean
 }
 
-export type ModuleProps = ChatProps | RoutineProps | TimeProps | WeatherProps
+export interface SammlungProps extends BaseModule {
+  type: 'Sammlung'
+  mode?: 'image' | 'audio'
+  collection?: string
+  imageDuration?: number // minutes
+  imageAudioMode?: 'silent' | 'caption' | 'playlist'
+  showCaptionText?: boolean
+  backgroundCollection?: string
+  voice?: 'male' | 'female'
+  readingSpeed?: 'slow' | 'normal' | 'fast'
+  pause?: 'short' | 'medium' | 'long'
+  repeat?: boolean
+}
+
+export type ModuleProps = ChatProps | RoutineProps | TimeProps | WeatherProps | SammlungProps

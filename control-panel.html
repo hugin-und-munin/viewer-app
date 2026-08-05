@@ -31,7 +31,7 @@
         display: grid;
         grid-template-columns: repeat(2, 1fr);
         gap: 16px;
-        max-width: 800px;
+        max-width: 1400px;
       }
       .section {
         background: #fff;
@@ -91,6 +91,165 @@
       .log-entry.err {
         color: #c0392b;
       }
+
+      /* ── Schema-driven module forms — mirrors content-app's own settings
+         rendering (ModuleSettingsPage.tsx/.css), so a form here looks and
+         behaves like the real thing. ── */
+      details.module summary {
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #888;
+        list-style: none;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      details.module summary::-webkit-details-marker {
+        display: none;
+      }
+      details.module summary::before {
+        content: '▸';
+        color: #f09644;
+        font-size: 11px;
+        transition: transform 0.15s;
+      }
+      details.module[open] summary::before {
+        transform: rotate(90deg);
+      }
+      details.module[open] summary {
+        margin-bottom: 10px;
+      }
+      .msp-card {
+        border-radius: 10px;
+        border: 1px solid #e0e0e0;
+        overflow: hidden;
+      }
+      .setting-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 10px 14px;
+        border-bottom: 1px solid #f0f0f0;
+        min-height: 40px;
+      }
+      .setting-row:last-child {
+        border-bottom: none;
+      }
+      .setting-row.indented {
+        padding-left: 30px;
+        background: #fafafa;
+      }
+      .setting-label {
+        font-size: 13px;
+        font-weight: 500;
+        color: #1e1b4b;
+        flex-shrink: 0;
+      }
+      .setting-divider {
+        height: 1px;
+        background: #e8e8e8;
+        margin: 2px 0;
+      }
+      .toggle {
+        width: 38px;
+        height: 22px;
+        border-radius: 99px;
+        background: #d1d5db;
+        border: none;
+        cursor: pointer;
+        padding: 2px;
+        display: flex;
+        align-items: center;
+        transition: background 0.15s;
+        flex-shrink: 0;
+      }
+      .toggle.on {
+        background: #f09644;
+        justify-content: flex-end;
+      }
+      .toggle-thumb {
+        width: 18px;
+        height: 18px;
+        background: #fff;
+        border-radius: 50%;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+      }
+      .pills {
+        display: flex;
+        gap: 5px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+      .pill {
+        padding: 5px 11px;
+        border-radius: 7px;
+        border: 1px solid #f5d5a8;
+        background: #fff;
+        color: #f09644;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+      }
+      .pill:hover {
+        background: #feeddc;
+      }
+      .pill.active {
+        background: #f09644;
+        color: #fff;
+        border-color: #f09644;
+      }
+      .select-input {
+        padding: 6px 10px;
+        border-radius: 7px;
+        border: 1px solid #f5d5a8;
+        background: #fff;
+        color: #1e1b4b;
+        font-size: 12px;
+        max-width: 220px;
+      }
+      .select-input:focus {
+        outline: 2px solid #f09644;
+        outline-offset: 1px;
+      }
+      .setting-slider-wrap {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex: 1;
+        justify-content: flex-end;
+        max-width: 240px;
+      }
+      input[type='range'] {
+        -webkit-appearance: none;
+        appearance: none;
+        flex: 1;
+        height: 4px;
+        border-radius: 99px;
+        background: linear-gradient(to right, #f09644 var(--pct, 0%), #f5d5a8 var(--pct, 0%));
+        outline: none;
+        cursor: pointer;
+      }
+      input[type='range']::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #f09644;
+        border: 2px solid #fff;
+        box-shadow: 0 1px 3px rgba(240, 150, 68, 0.4);
+        cursor: pointer;
+      }
+      .setting-slider-val {
+        font-size: 12px;
+        font-weight: 600;
+        color: #f09644;
+        min-width: 30px;
+        text-align: right;
+      }
     </style>
   </head>
   <body>
@@ -106,160 +265,8 @@
         </div>
       </div>
 
-      <div class="section">
-        <h2>Chat</h2>
-        <div class="row">
-          <button onclick="testChatStill()">Light ohne Ton</button>
-          <button onclick="testChatDark()">Dark ohne Ton</button>
-          <button onclick="testChatFemale()">Female</button>
-          <button onclick="testChatMale()">Male</button>
-        </div>
-        <div class="row">
-          <button onclick="testChatSmall()">Schrift Klein</button>
-          <button onclick="testChatLarge()">Schrift Gross</button>
-        </div>
-        <div class="row">
-          <button onclick="testChatPauseShort()">Pause Kurz (schnell testen)</button>
-          <button onclick="testChatPauseLong()">Pause Lang</button>
-          <button onclick="testChatRepeat()">Wiederholung</button>
-        </div>
-        <div class="row">
-          <button onclick="testChatImageShort()">Bilddauer 0.5min</button>
-        </div>
-        <div class="row">
-          <button onclick="testChatNoSound()">Ohne Signalton</button>
-        </div>
-      </div>
+      <div class="section wide" id="module-sections"></div>
 
-      <div class="section">
-        <h2>Zeit</h2>
-        <div class="row">
-          <button onclick="testTime24()">24h</button>
-          <button onclick="testTime12()">12h</button>
-          <button onclick="testTimeSeconds()">Mit Sekunden</button>
-          <button onclick="testTimeNoDate()">Kein Datum</button>
-        </div>
-        <div class="row">
-          <button onclick="testTimeFemale()">Female</button>
-          <button onclick="testTimeMale()">Male</button>
-        </div>
-        <div class="row">
-          <button onclick="testTimeMuted()">Ohne Ton</button>
-          <button onclick="testTimeRepeat()">Wiederholung</button>
-          <button onclick="testTimePauseShort()">Pause Kurz (schnell testen)</button>
-        </div>
-        <div class="row">
-          <button onclick="testTimeNatural()">Zeitansage Natürlich</button>
-          <button onclick="testTimeExact()">Zeitansage Genau</button>
-        </div>
-        <div class="row">
-          <button onclick="testTimeNoSound()">Ohne Signalton</button>
-        </div>
-        <div class="row">
-          <button onclick="testTimeDark()">Dark Mode</button>
-          <button onclick="testTimeDarkAnalog()">Dark Mode Analog</button>
-        </div>
-      </div>
-
-      <div class="section">
-        <h2>Routine</h2>
-        <div class="row">
-          <button onclick="testRoutineStill()">Ohne Ton</button>
-          <button onclick="testRoutineTon()">Mit Ton</button>
-        </div>
-        <div class="row">
-          <button onclick="testRoutineSimple()">Einfach</button>
-        </div>
-        <div class="row">
-          <button onclick="testRoutinePauseShort()">Pause Kurz (schnell testen)</button>
-          <button onclick="testRoutinePauseLong()">Pause Lang</button>
-          <button onclick="testRoutineRepeat()">Wiederholung</button>
-        </div>
-        <div class="row">
-          <button onclick="testRoutineNoSound()">Ohne Signalton</button>
-        </div>
-        <div class="row">
-          <button onclick="testRoutineDark()">Dark Mode</button>
-          <button onclick="testRoutineDarkSimple()">Dark Mode Einfach</button>
-        </div>
-      </div>
-
-      <div class="section">
-        <h2>Wetter</h2>
-        <div class="row">
-          <button onclick="testWeatherIcon()">Icon</button>
-          <button onclick="testWeatherPhoto()">Naturbild</button>
-        </div>
-        <div class="row">
-          <button onclick="testWeatherTemp()">Mit Temperatur</button>
-          <button onclick="testWeatherTomorrow()">Mit Morgen-Ansage</button>
-        </div>
-        <div class="row">
-          <button onclick="testWeatherFemale()">Female</button>
-          <button onclick="testWeatherMale()">Male</button>
-        </div>
-        <div class="row">
-          <button onclick="testWeatherMuted()">Ohne Ton</button>
-          <button onclick="testWeatherRepeat()">Wiederholung</button>
-          <button onclick="testWeatherPauseShort()">Pause Kurz (schnell testen)</button>
-        </div>
-        <div class="row">
-          <button onclick="testWeatherNoSound()">Ohne Signalton</button>
-        </div>
-        <div class="row">
-          <button class="orange" onclick="testWeatherCycle()">
-            Test-Zyklus Icons (jeder Klick = andere Tageszeit/Temperatur/Wetter)
-          </button>
-        </div>
-        <div class="row">
-          <button class="orange" onclick="testWeatherCyclePhoto()">
-            Test-Zyklus Fotos (jeder Klick = andere Tageszeit/Temperatur/Wetter)
-          </button>
-        </div>
-      </div>
-      <div class="section">
-        <h2>Sammlung</h2>
-
-        <div class="row">
-          <button onclick="testCollectionImages()">Bilder</button>
-          <button onclick="testCollectionAudio()">Audio</button>
-        </div>
-
-        <div class="row">
-          <button onclick="testCollectionSilent()">Stille</button>
-          <button onclick="testCollectionCaption()">Bildunterschrift</button>
-          <button onclick="testCollectionPlaylist()">Playlist</button>
-        </div>
-
-        <div class="row">
-          <button onclick="testCollectionFemale()">Female</button>
-          <button onclick="testCollectionMale()">Male</button>
-        </div>
-
-        <div class="row">
-          <button onclick="testCollectionReadingSlow()">Langsam</button>
-          <button onclick="testCollectionReadingFast()">Schnell</button>
-        </div>
-
-        <div class="row">
-          <button onclick="testCollectionPauseShort()">Pause Kurz</button>
-          <button onclick="testCollectionPauseLong()">Pause Lang</button>
-          <button onclick="testCollectionRepeat()">Wiederholung</button>
-        </div>
-
-        <div class="row">
-          <button onclick="testCollectionImageShort()">Bilddauer 0.5min</button>
-          <button onclick="testCollectionImageLong()">Bilddauer 5min</button>
-        </div>
-
-        <div class="row">
-          <button onclick="testCollectionShowCaptionText()">Bildunterschrift anzeigen</button>
-        </div>
-
-        <div class="row">
-          <button onclick="testCollectionNoSound()">Ohne Signalton</button>
-        </div>
-      </div>
       <div class="section wide">
         <h2>Custom JSON</h2>
         <textarea id="json-input">
@@ -313,804 +320,694 @@
         send({ command: 'pause', duration: minutes })
       }
 
-      // ── Chat ──────────────────────────────────────────────────────────────
+      // ── Module field lists ───────────────────────────────────────────────
+      // Hand-transcribed from api-server/modules/schemas/*.json (there's no
+      // browser-reachable, unauthenticated way for this standalone file to
+      // fetch them live — GetModuleSchema requires a display-device token).
+      // If you change a schema there, update the matching entry here.
+      //
+      // "duration" is the one field that isn't sent as-is: the schema stores
+      // it in minutes (like content-app's own editor does), but the loadModule
+      // override path (BackgroundController.onLoadModule) uses it directly as
+      // a millisecond setTimeout — the same *60*1000 conversion appconfig.api.ts
+      // applies for real scheduled config. See testModule() below.
+      //
+      // select-dynamic fields (collection pickers) are simplified to a plain
+      // text input here instead of fetching+listing real collections — type
+      // the collection name directly.
 
-      function testChatStill() {
+      const RADIO_MF = [
+        { label: 'Männlich', value: 'male' },
+        { label: 'Weiblich', value: 'female' },
+      ]
+      const RADIO_SPEED = [
+        { label: 'Langsam', value: 'slow' },
+        { label: 'Normal', value: 'normal' },
+        { label: 'Schnell', value: 'fast' },
+      ]
+      const RADIO_PAUSE = [
+        { label: 'Kurz', value: 'short' },
+        { label: 'Mittel', value: 'medium' },
+        { label: 'Lang', value: 'long' },
+      ]
+      const RADIO_THEME = [
+        { label: 'Hell', value: 'light' },
+        { label: 'Dunkel', value: 'dark' },
+      ]
+
+      const MODULES = {
+        Chat: {
+          id: CHAT_ID,
+          defaults: {
+            duration: 10,
+            recentMessageCount: 10,
+            imageDuration: 1,
+            transitionSound: true,
+            audio: true,
+            voice: 'male',
+            readingSpeed: 'normal',
+            pause: 'long',
+            repeat: true,
+            fontSize: 'medium',
+            theme: 'dark',
+          },
+          fields: [
+            { type: 'slider', key: 'duration', label: 'Anzeigedauer', min: 1, max: 60, unit: 'min' },
+            {
+              type: 'slider',
+              key: 'recentMessageCount',
+              label: 'Anzahl neuster Nachrichten',
+              min: 5,
+              max: 30,
+              unit: '',
+            },
+            {
+              type: 'slider',
+              key: 'imageDuration',
+              label: 'Bilddauer',
+              min: 0.5,
+              max: 10,
+              step: 0.5,
+              unit: 'min',
+            },
+            { type: 'toggle', key: 'transitionSound', label: 'Signalton beim Laden' },
+            { type: 'divider' },
+            { type: 'toggle', key: 'audio', label: 'Audioausgabe' },
+            {
+              type: 'radio',
+              key: 'voice',
+              label: 'Stimme',
+              options: RADIO_MF,
+              showWhen: { field: 'audio', value: true },
+              indent: true,
+            },
+            {
+              type: 'radio',
+              key: 'readingSpeed',
+              label: 'Lesegeschwindigkeit',
+              options: RADIO_SPEED,
+              showWhen: { field: 'audio', value: true },
+              indent: true,
+            },
+            {
+              type: 'radio',
+              key: 'pause',
+              label: 'Sprechpause',
+              options: RADIO_PAUSE,
+              showWhen: { field: 'audio', value: true },
+              indent: true,
+            },
+            {
+              type: 'toggle',
+              key: 'repeat',
+              label: 'Wiederholung',
+              showWhen: { field: 'audio', value: true },
+              indent: true,
+            },
+            { type: 'divider' },
+            {
+              type: 'radio',
+              key: 'fontSize',
+              label: 'Schriftgrösse',
+              options: [
+                { label: 'Klein', value: 'small' },
+                { label: 'Mittel', value: 'medium' },
+                { label: 'Gross', value: 'large' },
+              ],
+            },
+            { type: 'radio', key: 'theme', label: 'Design', options: RADIO_THEME },
+          ],
+        },
+
+        Time: {
+          id: TIME_ID,
+          defaults: {
+            duration: 1,
+            transitionSound: true,
+            audio: true,
+            voice: 'male',
+            readingSpeed: 'normal',
+            timeAnnouncement: 'natural',
+            pause: 'long',
+            repeat: true,
+            interval: 30,
+            theme: 'dark',
+            clockType: 'digital',
+            timeFormat: '24h',
+            showDate: true,
+            showSeconds: false,
+          },
+          fields: [
+            {
+              type: 'slider',
+              key: 'duration',
+              label: 'Anzeigedauer',
+              min: 0.5,
+              max: 10,
+              step: 0.5,
+              unit: 'min',
+            },
+            { type: 'toggle', key: 'transitionSound', label: 'Signalton beim Laden' },
+            { type: 'toggle', key: 'audio', label: 'Audioausgabe' },
+            {
+              type: 'radio',
+              key: 'voice',
+              label: 'Stimme',
+              options: RADIO_MF,
+              showWhen: { field: 'audio', value: true },
+              indent: true,
+            },
+            {
+              type: 'radio',
+              key: 'readingSpeed',
+              label: 'Lesegeschwindigkeit',
+              options: RADIO_SPEED,
+              showWhen: { field: 'audio', value: true },
+              indent: true,
+            },
+            {
+              type: 'radio',
+              key: 'timeAnnouncement',
+              label: 'Zeitansage',
+              options: [
+                { label: 'Natürlich', value: 'natural' },
+                { label: 'Genau', value: 'exact' },
+              ],
+              showWhen: { field: 'audio', value: true },
+              indent: true,
+            },
+            {
+              type: 'radio',
+              key: 'pause',
+              label: 'Sprechpause',
+              options: RADIO_PAUSE,
+              showWhen: { field: 'audio', value: true },
+              indent: true,
+            },
+            {
+              type: 'toggle',
+              key: 'repeat',
+              label: 'Wiederholung',
+              showWhen: { field: 'audio', value: true },
+              indent: true,
+            },
+            { type: 'divider' },
+            {
+              type: 'radio',
+              key: 'interval',
+              label: 'Anzeigehäufigkeit',
+              options: [
+                { label: 'Alle 15 Minuten', value: 15 },
+                { label: 'Alle 30 Minuten', value: 30 },
+                { label: 'Stündlich', value: 60 },
+              ],
+            },
+            { type: 'divider' },
+            { type: 'radio', key: 'theme', label: 'Design', options: RADIO_THEME },
+            {
+              type: 'radio',
+              key: 'clockType',
+              label: 'Uhrentyp',
+              options: [
+                { label: 'Digital', value: 'digital' },
+                { label: 'Analog', value: 'analog' },
+              ],
+            },
+            {
+              type: 'radio',
+              key: 'timeFormat',
+              label: 'Zeitformat',
+              options: [
+                { label: '24 Stunden', value: '24h' },
+                { label: '12 Stunden', value: '12h' },
+              ],
+            },
+            { type: 'toggle', key: 'showDate', label: 'Datum anzeigen' },
+            { type: 'toggle', key: 'showSeconds', label: 'Sekunden anzeigen' },
+          ],
+        },
+
+        Routine: {
+          id: ROUTINE_ID,
+          defaults: {
+            duration: 2,
+            mode: 'overview',
+            theme: 'dark',
+            transitionSound: true,
+            audio: true,
+            voice: 'male',
+            readingSpeed: 'normal',
+            pause: 'long',
+            repeat: true,
+          },
+          fields: [
+            { type: 'slider', key: 'duration', label: 'Anzeigedauer', min: 1, max: 60, unit: 'min' },
+            {
+              type: 'radio',
+              key: 'mode',
+              label: 'Ansicht',
+              options: [
+                { label: 'Übersicht', value: 'overview' },
+                { label: 'Einfach', value: 'simple' },
+              ],
+            },
+            { type: 'radio', key: 'theme', label: 'Design', options: RADIO_THEME },
+            { type: 'toggle', key: 'transitionSound', label: 'Signalton beim Laden' },
+            { type: 'divider' },
+            { type: 'toggle', key: 'audio', label: 'Audioausgabe' },
+            {
+              type: 'radio',
+              key: 'voice',
+              label: 'Stimme',
+              options: RADIO_MF,
+              showWhen: { field: 'audio', value: true },
+              indent: true,
+            },
+            {
+              type: 'radio',
+              key: 'readingSpeed',
+              label: 'Lesegeschwindigkeit',
+              options: RADIO_SPEED,
+              showWhen: { field: 'audio', value: true },
+              indent: true,
+            },
+            {
+              type: 'radio',
+              key: 'pause',
+              label: 'Sprechpause',
+              options: RADIO_PAUSE,
+              showWhen: { field: 'audio', value: true },
+              indent: true,
+            },
+            {
+              type: 'toggle',
+              key: 'repeat',
+              label: 'Wiederholung',
+              showWhen: { field: 'audio', value: true },
+              indent: true,
+            },
+          ],
+        },
+
+        Weather: {
+          id: WEATHER_ID,
+          defaults: {
+            duration: 3,
+            location: '47.2088,7.5323',
+            imageSource: 'icon',
+            showTemperature: true,
+            transitionSound: true,
+            audio: true,
+            voice: 'male',
+            readingSpeed: 'normal',
+            pause: 'long',
+            repeat: true,
+            announceTomorrow: true,
+          },
+          fields: [
+            { type: 'slider', key: 'duration', label: 'Anzeigedauer', min: 1, max: 60, unit: 'min' },
+            {
+              type: 'select',
+              key: 'location',
+              label: 'Standort',
+              options: [
+                { label: 'Aarau (AG)', value: '47.3915,8.0450' },
+                { label: 'Altdorf (UR)', value: '46.8802,8.6432' },
+                { label: 'Appenzell (AI)', value: '47.3307,9.4090' },
+                { label: 'Basel (BS)', value: '47.5596,7.5886' },
+                { label: 'Bellinzona (TI)', value: '46.1944,9.0175' },
+                { label: 'Bern (BE)', value: '46.9480,7.4474' },
+                { label: 'Chur (GR)', value: '46.8499,9.5329' },
+                { label: 'Delémont (JU)', value: '47.3645,7.3444' },
+                { label: 'Frauenfeld (TG)', value: '47.5584,8.8969' },
+                { label: 'Freiburg (FR)', value: '46.8065,7.1619' },
+                { label: 'Genf (GE)', value: '46.2044,6.1432' },
+                { label: 'Glarus (GL)', value: '47.0403,9.0676' },
+                { label: 'Herisau (AR)', value: '47.3846,9.2793' },
+                { label: 'Lausanne (VD)', value: '46.5197,6.6323' },
+                { label: 'Liestal (BL)', value: '47.4835,7.7307' },
+                { label: 'Luzern (LU)', value: '47.0502,8.3093' },
+                { label: 'Neuchâtel (NE)', value: '46.9900,6.9293' },
+                { label: 'Sarnen (OW)', value: '46.8974,8.2458' },
+                { label: 'Schaffhausen (SH)', value: '47.6970,8.6350' },
+                { label: 'Schwyz (SZ)', value: '47.0207,8.6553' },
+                { label: 'Sion (VS)', value: '46.2331,7.3606' },
+                { label: 'Solothurn (SO)', value: '47.2088,7.5323' },
+                { label: 'St. Gallen (SG)', value: '47.4245,9.3767' },
+                { label: 'Stans (NW)', value: '46.9581,8.3654' },
+                { label: 'Thun (BE)', value: '46.7580,7.6280' },
+                { label: 'Zug (ZG)', value: '47.1662,8.5155' },
+                { label: 'Zürich (ZH)', value: '47.3769,8.5417' },
+              ],
+            },
+            {
+              type: 'radio',
+              key: 'imageSource',
+              label: 'Darstellung',
+              options: [
+                { label: 'Icon', value: 'icon' },
+                { label: 'Naturbild', value: 'photo' },
+              ],
+            },
+            { type: 'toggle', key: 'showTemperature', label: 'Temperatur anzeigen' },
+            { type: 'toggle', key: 'transitionSound', label: 'Signalton beim Laden' },
+            { type: 'divider' },
+            { type: 'toggle', key: 'audio', label: 'Audioausgabe' },
+            {
+              type: 'radio',
+              key: 'voice',
+              label: 'Stimme',
+              options: RADIO_MF,
+              showWhen: { field: 'audio', value: true },
+              indent: true,
+            },
+            {
+              type: 'radio',
+              key: 'readingSpeed',
+              label: 'Lesegeschwindigkeit',
+              options: RADIO_SPEED,
+              showWhen: { field: 'audio', value: true },
+              indent: true,
+            },
+            {
+              type: 'radio',
+              key: 'pause',
+              label: 'Sprechpause',
+              options: RADIO_PAUSE,
+              showWhen: { field: 'audio', value: true },
+              indent: true,
+            },
+            {
+              type: 'toggle',
+              key: 'repeat',
+              label: 'Wiederholung',
+              showWhen: { field: 'audio', value: true },
+              indent: true,
+            },
+            {
+              type: 'toggle',
+              key: 'announceTomorrow',
+              label: 'Morgen ebenfalls ansagen',
+              showWhen: { field: 'audio', value: true },
+              indent: true,
+            },
+          ],
+        },
+
+        Sammlung: {
+          id: COLLECTION_ID,
+          defaults: {
+            duration: 5,
+            mode: 'image',
+            collection: '',
+            imageDuration: 1,
+            imageAudioMode: 'silent',
+            backgroundCollection: '',
+            voice: 'female',
+            readingSpeed: 'normal',
+            pause: 'long',
+            repeat: true,
+            showCaptionText: false,
+            transitionSound: true,
+          },
+          fields: [
+            { type: 'slider', key: 'duration', label: 'Anzeigedauer', min: 1, max: 60, unit: 'min' },
+            {
+              type: 'radio',
+              key: 'mode',
+              label: 'Inhaltstyp',
+              options: [
+                { label: 'Bild', value: 'image' },
+                { label: 'Audio', value: 'audio' },
+              ],
+            },
+            { type: 'select-dynamic', key: 'collection', label: 'Sammlung' },
+            {
+              type: 'slider',
+              key: 'imageDuration',
+              label: 'Bilddauer',
+              min: 0.5,
+              max: 10,
+              step: 0.5,
+              unit: 'min',
+              showWhen: { field: 'mode', value: 'image' },
+            },
+            {
+              type: 'radio',
+              key: 'imageAudioMode',
+              label: 'Audio-Begleitung',
+              options: [
+                { label: 'Stille', value: 'silent' },
+                { label: 'Bildunterschrift', value: 'caption' },
+                { label: 'Hintergrund-Playlist', value: 'playlist' },
+              ],
+              showWhen: { field: 'mode', value: 'image' },
+            },
+            {
+              type: 'select-dynamic',
+              key: 'backgroundCollection',
+              label: 'Hintergrund-Sammlung',
+              showWhen: { field: 'imageAudioMode', value: 'playlist' },
+              indent: true,
+            },
+            {
+              type: 'radio',
+              key: 'voice',
+              label: 'Stimme',
+              options: RADIO_MF,
+              showWhen: { field: 'imageAudioMode', value: 'caption' },
+              indent: true,
+            },
+            {
+              type: 'radio',
+              key: 'readingSpeed',
+              label: 'Lesegeschwindigkeit',
+              options: RADIO_SPEED,
+              showWhen: { field: 'imageAudioMode', value: 'caption' },
+              indent: true,
+            },
+            {
+              type: 'radio',
+              key: 'pause',
+              label: 'Sprechpause',
+              options: RADIO_PAUSE,
+              showWhen: { field: 'imageAudioMode', value: 'caption' },
+              indent: true,
+            },
+            {
+              type: 'toggle',
+              key: 'repeat',
+              label: 'Wiederholung',
+              showWhen: { field: 'imageAudioMode', value: 'caption' },
+              indent: true,
+            },
+            {
+              type: 'toggle',
+              key: 'showCaptionText',
+              label: 'Bildunterschrift auf dem Bildschirm anzeigen',
+              showWhen: { field: 'imageAudioMode', value: 'caption' },
+              indent: true,
+            },
+            { type: 'toggle', key: 'transitionSound', label: 'Signalton beim Laden' },
+          ],
+        },
+      }
+
+      const MODULE_LABELS = {
+        Chat: 'Chat',
+        Time: 'Zeit',
+        Routine: 'Routine',
+        Weather: 'Wetter',
+        Sammlung: 'Sammlung',
+      }
+
+      // ── Generic renderer ─────────────────────────────────────────────────
+
+      function buildModuleSections() {
+        const container = document.getElementById('module-sections')
+        for (const name of Object.keys(MODULES)) {
+          const module = MODULES[name]
+          module.state = { ...module.defaults }
+
+          const details = document.createElement('details')
+          details.className = 'module'
+
+          const summary = document.createElement('summary')
+          summary.textContent = MODULE_LABELS[name] ?? name
+          details.appendChild(summary)
+
+          const card = document.createElement('div')
+          card.className = 'msp-card'
+          details.appendChild(card)
+
+          const testRow = document.createElement('div')
+          testRow.className = 'row'
+          testRow.style.marginTop = '10px'
+          const testBtn = document.createElement('button')
+          testBtn.className = 'orange'
+          testBtn.textContent = 'Testen'
+          testBtn.onclick = () => testModule(name)
+          testRow.appendChild(testBtn)
+          details.appendChild(testRow)
+
+          if (name === 'Weather') {
+            details.appendChild(buildWeatherCycleRow(testWeatherCycle, 'Test-Zyklus Icons (jeder Klick = andere Tageszeit/Temperatur/Wetter)'))
+            details.appendChild(buildWeatherCycleRow(testWeatherCyclePhoto, 'Test-Zyklus Fotos (jeder Klick = andere Tageszeit/Temperatur/Wetter)'))
+          }
+
+          const renderAll = () => {
+            card.innerHTML = ''
+            for (const field of module.fields) {
+              if (field.type !== 'divider' && field.showWhen) {
+                if (module.state[field.showWhen.field] !== field.showWhen.value) continue
+              }
+              card.appendChild(renderField(field, module.state, renderAll))
+            }
+          }
+          module.renderAll = renderAll
+          renderAll()
+
+          container.appendChild(details)
+        }
+      }
+
+      function buildWeatherCycleRow(handler, label) {
+        const row = document.createElement('div')
+        row.className = 'row'
+        const btn = document.createElement('button')
+        btn.className = 'orange'
+        btn.textContent = label
+        btn.onclick = handler
+        row.appendChild(btn)
+        return row
+      }
+
+      function renderField(field, state, rerender) {
+        if (field.type === 'divider') {
+          const div = document.createElement('div')
+          div.className = 'setting-divider'
+          return div
+        }
+
+        const row = document.createElement('div')
+        row.className = 'setting-row' + (field.indent ? ' indented' : '')
+
+        const label = document.createElement('span')
+        label.className = 'setting-label'
+        label.textContent = field.label
+        row.appendChild(label)
+
+        if (field.type === 'slider') {
+          const wrap = document.createElement('div')
+          wrap.className = 'setting-slider-wrap'
+          const input = document.createElement('input')
+          input.type = 'range'
+          input.min = field.min
+          input.max = field.max
+          input.step = field.step ?? 1
+          input.value = state[field.key]
+          const valSpan = document.createElement('span')
+          valSpan.className = 'setting-slider-val'
+          const updateVal = () => {
+            valSpan.textContent = `${input.value}${field.unit ?? ''}`
+          }
+          const updatePct = () => {
+            const pct = ((input.value - field.min) / (field.max - field.min)) * 100
+            input.style.setProperty('--pct', `${pct}%`)
+          }
+          updateVal()
+          updatePct()
+          input.addEventListener('input', () => {
+            state[field.key] = Number(input.value)
+            updateVal()
+            updatePct()
+          })
+          wrap.appendChild(input)
+          wrap.appendChild(valSpan)
+          row.appendChild(wrap)
+        } else if (field.type === 'toggle') {
+          const btn = document.createElement('button')
+          btn.type = 'button'
+          btn.className = 'toggle' + (state[field.key] ? ' on' : '')
+          btn.setAttribute('role', 'switch')
+          btn.setAttribute('aria-checked', String(!!state[field.key]))
+          const thumb = document.createElement('span')
+          thumb.className = 'toggle-thumb'
+          btn.appendChild(thumb)
+          btn.addEventListener('click', () => {
+            state[field.key] = !state[field.key]
+            rerender()
+          })
+          row.appendChild(btn)
+        } else if (field.type === 'radio') {
+          const pills = document.createElement('div')
+          pills.className = 'pills'
+          for (const opt of field.options) {
+            const pill = document.createElement('button')
+            pill.type = 'button'
+            pill.className = 'pill' + (state[field.key] === opt.value ? ' active' : '')
+            pill.textContent = opt.label
+            pill.addEventListener('click', () => {
+              state[field.key] = opt.value
+              rerender()
+            })
+            pills.appendChild(pill)
+          }
+          row.appendChild(pills)
+        } else if (field.type === 'select') {
+          const select = document.createElement('select')
+          select.className = 'select-input'
+          for (const opt of field.options) {
+            const option = document.createElement('option')
+            option.value = opt.value
+            option.textContent = opt.label
+            select.appendChild(option)
+          }
+          select.value = state[field.key]
+          select.addEventListener('change', () => {
+            state[field.key] = select.value
+            rerender()
+          })
+          row.appendChild(select)
+        } else if (field.type === 'select-dynamic') {
+          // Real content-app fetches /modules/{id}/data and lists the distinct
+          // collection names; kept simple here — just type the name.
+          const input = document.createElement('input')
+          input.type = 'text'
+          input.className = 'select-input'
+          input.placeholder = 'Sammlungsname eingeben…'
+          input.value = state[field.key] ?? ''
+          input.addEventListener('input', () => {
+            state[field.key] = input.value
+          })
+          row.appendChild(input)
+        }
+
+        return row
+      }
+
+      function testModule(name) {
+        const module = MODULES[name]
+        const payload = { ...module.state }
+        if (typeof payload.duration === 'number') {
+          payload.duration = payload.duration * 60 * 1000 // minutes → ms (see comment above MODULES)
+        }
         send({
           command: 'loadModule',
-          type: 'Chat',
-          module_id: CHAT_ID,
-          duration: 300000,
-          audio: false,
-          theme: 'light',
-          fontSize: 'large',
+          type: name,
+          module_id: module.id,
+          ...payload,
         })
       }
 
-      function testChatDark() {
-        send({
-          command: 'loadModule',
-          type: 'Chat',
-          module_id: CHAT_ID,
-          duration: 300000,
-          audio: false,
-          theme: 'dark',
-          fontSize: 'large',
-        })
-      }
-
-      function testChatFemale() {
-        send({
-          command: 'loadModule',
-          type: 'Chat',
-          module_id: CHAT_ID,
-          duration: 300000,
-          audio: true,
-          voice: 'female',
-          theme: 'dark',
-          fontSize: 'large',
-        })
-      }
-
-      function testChatMale() {
-        send({
-          command: 'loadModule',
-          type: 'Chat',
-          module_id: CHAT_ID,
-          duration: 300000,
-          audio: true,
-          voice: 'male',
-          theme: 'dark',
-          fontSize: 'large',
-        })
-      }
-
-      function testChatSmall() {
-        send({
-          command: 'loadModule',
-          type: 'Chat',
-          module_id: CHAT_ID,
-          duration: 300000,
-          audio: false,
-          theme: 'light',
-          fontSize: 'small',
-        })
-      }
-
-      function testChatLarge() {
-        send({
-          command: 'loadModule',
-          type: 'Chat',
-          module_id: CHAT_ID,
-          duration: 300000,
-          audio: false,
-          theme: 'light',
-          fontSize: 'large',
-        })
-      }
-
-      function testChatPauseShort() {
-        // Short scale (3s) so the pause before the first message and between
-        // messages is quick to hear without waiting through the long default.
-        send({
-          command: 'loadModule',
-          type: 'Chat',
-          module_id: CHAT_ID,
-          duration: 300000,
-          audio: true,
-          voice: 'female',
-          theme: 'light',
-          fontSize: 'large',
-          pause: 'short',
-        })
-      }
-
-      function testChatPauseLong() {
-        send({
-          command: 'loadModule',
-          type: 'Chat',
-          module_id: CHAT_ID,
-          duration: 300000,
-          audio: true,
-          voice: 'female',
-          theme: 'light',
-          fontSize: 'large',
-          pause: 'long',
-        })
-      }
-
-      function testChatRepeat() {
-        send({
-          command: 'loadModule',
-          type: 'Chat',
-          module_id: CHAT_ID,
-          duration: 300000,
-          audio: true,
-          voice: 'female',
-          theme: 'light',
-          fontSize: 'large',
-          pause: 'short',
-          repeat: true,
-        })
-      }
-
-      function testChatImageShort() {
-        // Needs an image-type message in the module's data to actually see —
-        // just verifies the setting is picked up (0.5min = 30s instead of the 1min default).
-        send({
-          command: 'loadModule',
-          type: 'Chat',
-          module_id: CHAT_ID,
-          duration: 300000,
-          audio: false,
-          theme: 'light',
-          fontSize: 'large',
-          imageDuration: 0.5,
-        })
-      }
-
-      function testChatNoSound() {
-        // Every other Chat button omits transitionSound, so the default (on)
-        // already gets exercised by them — this checks the explicit off path.
-        send({
-          command: 'loadModule',
-          type: 'Chat',
-          module_id: CHAT_ID,
-          duration: 300000,
-          audio: false,
-          theme: 'light',
-          fontSize: 'large',
-          transitionSound: false,
-        })
-      }
-
-      // ── Sammlung ───────────────────────────────────────────────────────────
-
-      function testCollectionImages() {
-        send({
-          command: 'loadModule',
-          type: 'Sammlung',
-          module_id: COLLECTION_ID,
-          duration: 300000,
-          mode: 'image',
-          collection: 'Testbilder',
-          imageAudioMode: 'silent',
-        })
-      }
-
-      function testCollectionAudio() {
-        send({
-          command: 'loadModule',
-          type: 'Sammlung',
-          module_id: COLLECTION_ID,
-          duration: 300000,
-          mode: 'audio',
-          collection: 'Testmusik',
-        })
-      }
-
-      function testCollectionSilent() {
-        send({
-          command: 'loadModule',
-          type: 'Sammlung',
-          module_id: COLLECTION_ID,
-          duration: 300000,
-          mode: 'image',
-          collection: 'Testbilder',
-          imageAudioMode: 'silent',
-        })
-      }
-
-      function testCollectionCaption() {
-        send({
-          command: 'loadModule',
-          type: 'Sammlung',
-          module_id: COLLECTION_ID,
-          duration: 300000,
-          mode: 'image',
-          collection: 'Testbilder',
-          imageAudioMode: 'caption',
-          voice: 'female',
-          readingSpeed: 'normal',
-          pause: 'short',
-          repeat: true,
-        })
-      }
-
-      function testCollectionPlaylist() {
-        send({
-          command: 'loadModule',
-          type: 'Sammlung',
-          module_id: COLLECTION_ID,
-          duration: 300000,
-          mode: 'image',
-          collection: 'Testbilder',
-          imageAudioMode: 'playlist',
-          backgroundCollection: 'Testmusik',
-        })
-      }
-
-      function testCollectionFemale() {
-        send({
-          command: 'loadModule',
-          type: 'Sammlung',
-          module_id: COLLECTION_ID,
-          duration: 300000,
-          mode: 'image',
-          collection: 'Testbilder',
-          imageAudioMode: 'caption',
-          voice: 'female',
-        })
-      }
-
-      function testCollectionMale() {
-        send({
-          command: 'loadModule',
-          type: 'Sammlung',
-          module_id: COLLECTION_ID,
-          duration: 300000,
-          mode: 'image',
-          collection: 'Testbilder',
-          imageAudioMode: 'caption',
-          voice: 'male',
-        })
-      }
-
-      function testCollectionReadingSlow() {
-        send({
-          command: 'loadModule',
-          type: 'Sammlung',
-          module_id: COLLECTION_ID,
-          duration: 300000,
-          mode: 'image',
-          collection: 'Testbilder',
-          imageAudioMode: 'caption',
-          readingSpeed: 'slow',
-        })
-      }
-
-      function testCollectionReadingFast() {
-        send({
-          command: 'loadModule',
-          type: 'Sammlung',
-          module_id: COLLECTION_ID,
-          duration: 300000,
-          mode: 'image',
-          collection: 'Testbilder',
-          imageAudioMode: 'caption',
-          readingSpeed: 'fast',
-        })
-      }
-
-      function testCollectionPauseShort() {
-        send({
-          command: 'loadModule',
-          type: 'Sammlung',
-          module_id: COLLECTION_ID,
-          duration: 300000,
-          mode: 'image',
-          collection: 'Testbilder',
-          imageAudioMode: 'caption',
-          pause: 'short',
-        })
-      }
-
-      function testCollectionPauseLong() {
-        send({
-          command: 'loadModule',
-          type: 'Sammlung',
-          module_id: COLLECTION_ID,
-          duration: 300000,
-          mode: 'image',
-          collection: 'Testbilder',
-          imageAudioMode: 'caption',
-          pause: 'long',
-        })
-      }
-
-      function testCollectionRepeat() {
-        send({
-          command: 'loadModule',
-          type: 'Sammlung',
-          module_id: COLLECTION_ID,
-          duration: 300000,
-          mode: 'image',
-          collection: 'Testbilder',
-          imageAudioMode: 'caption',
-          pause: 'short',
-          repeat: true,
-        })
-      }
-
-      function testCollectionImageShort() {
-        send({
-          command: 'loadModule',
-          type: 'Sammlung',
-          module_id: COLLECTION_ID,
-          duration: 300000,
-          mode: 'image',
-          collection: 'Testbilder',
-          imageDuration: 0.5,
-        })
-      }
-
-      function testCollectionImageLong() {
-        send({
-          command: 'loadModule',
-          type: 'Sammlung',
-          module_id: COLLECTION_ID,
-          duration: 300000,
-          mode: 'image',
-          collection: 'Testbilder',
-          imageDuration: 5,
-        })
-      }
-
-      function testCollectionShowCaptionText() {
-        send({
-          command: 'loadModule',
-          type: 'Sammlung',
-          module_id: COLLECTION_ID,
-          duration: 300000,
-          mode: 'image',
-          collection: 'Testbilder',
-          imageAudioMode: 'caption',
-          showCaptionText: true,
-        })
-      }
-
-      function testCollectionNoSound() {
-        send({
-          command: 'loadModule',
-          type: 'Sammlung',
-          module_id: COLLECTION_ID,
-          duration: 300000,
-          mode: 'image',
-          collection: 'Testbilder',
-          transitionSound: false,
-        })
-      }
-
-      // ── Zeit ──────────────────────────────────────────────────────────────
-
-      function testTime24() {
-        send({
-          command: 'loadModule',
-          type: 'Time',
-          module_id: TIME_ID,
-          duration: 300000,
-          format: 'HH:mm',
-          showSeconds: false,
-          showDate: true,
-          interval: 30,
-        })
-      }
-
-      function testTime12() {
-        send({
-          command: 'loadModule',
-          type: 'Time',
-          module_id: TIME_ID,
-          duration: 300000,
-          format: 'hh:mm a',
-          showSeconds: false,
-          showDate: true,
-          interval: 30,
-        })
-      }
-
-      function testTimeSeconds() {
-        send({
-          command: 'loadModule',
-          type: 'Time',
-          module_id: TIME_ID,
-          duration: 300000,
-          format: 'HH:mm',
-          showSeconds: true,
-          showDate: true,
-          interval: 30,
-        })
-      }
-
-      function testTimeNoDate() {
-        send({
-          command: 'loadModule',
-          type: 'Time',
-          module_id: TIME_ID,
-          duration: 300000,
-          format: 'HH:mm',
-          showSeconds: false,
-          showDate: false,
-          interval: 30,
-        })
-      }
-
-      function testTimeFemale() {
-        send({
-          command: 'loadModule',
-          type: 'Time',
-          module_id: TIME_ID,
-          duration: 300000,
-          format: 'HH:mm',
-          showSeconds: false,
-          showDate: true,
-          interval: 30,
-          voice: 'female',
-        })
-      }
-
-      function testTimeMale() {
-        send({
-          command: 'loadModule',
-          type: 'Time',
-          module_id: TIME_ID,
-          duration: 300000,
-          format: 'HH:mm',
-          showSeconds: false,
-          showDate: true,
-          interval: 30,
-          voice: 'male',
-        })
-      }
-
-      function testTimeMuted() {
-        send({
-          command: 'loadModule',
-          type: 'Time',
-          module_id: TIME_ID,
-          duration: 300000,
-          format: 'HH:mm',
-          showSeconds: false,
-          showDate: true,
-          interval: 30,
-          audio: false,
-        })
-      }
-
-      function testTimeRepeat() {
-        send({
-          command: 'loadModule',
-          type: 'Time',
-          module_id: TIME_ID,
-          duration: 300000,
-          format: 'HH:mm',
-          showSeconds: false,
-          showDate: true,
-          interval: 30,
-          audio: true,
-          repeat: true,
-        })
-      }
-
-      function testTimePauseShort() {
-        // Uhr just got its own Sprechpause field (start-of-module pause +
-        // repeat gap) — short scale (3s) to verify both quickly.
-        send({
-          command: 'loadModule',
-          type: 'Time',
-          module_id: TIME_ID,
-          duration: 300000,
-          format: 'HH:mm',
-          showSeconds: false,
-          showDate: true,
-          interval: 30,
-          audio: true,
-          pause: 'short',
-          repeat: true,
-        })
-      }
-
-      function testTimeNatural() {
-        // e.g. 21:47 should round to 21:45 and say "Viertel vor zehn" (12h),
-        // regardless of the 24h visual format below.
-        send({
-          command: 'loadModule',
-          type: 'Time',
-          module_id: TIME_ID,
-          duration: 300000,
-          format: 'HH:mm',
-          showSeconds: false,
-          showDate: true,
-          interval: 30,
-          audio: true,
-          timeAnnouncement: 'natural',
-        })
-      }
-
-      function testTimeExact() {
-        // e.g. 21:47 should say "einundzwanzig Uhr siebenundvierzig" (24h,
-        // unrounded), regardless of the 24h visual format below.
-        send({
-          command: 'loadModule',
-          type: 'Time',
-          module_id: TIME_ID,
-          duration: 300000,
-          format: 'HH:mm',
-          showSeconds: false,
-          showDate: true,
-          interval: 30,
-          audio: true,
-          timeAnnouncement: 'exact',
-        })
-      }
-
-      function testTimeNoSound() {
-        send({
-          command: 'loadModule',
-          type: 'Time',
-          module_id: TIME_ID,
-          duration: 300000,
-          format: 'HH:mm',
-          showSeconds: false,
-          showDate: true,
-          interval: 30,
-          audio: false,
-          transitionSound: false,
-        })
-      }
-
-      function testTimeDark() {
-        send({
-          command: 'loadModule',
-          type: 'Time',
-          module_id: TIME_ID,
-          duration: 300000,
-          format: 'HH:mm',
-          showSeconds: false,
-          showDate: true,
-          interval: 30,
-          audio: false,
-          clockType: 'digital',
-          theme: 'dark',
-        })
-      }
-
-      function testTimeDarkAnalog() {
-        send({
-          command: 'loadModule',
-          type: 'Time',
-          module_id: TIME_ID,
-          duration: 300000,
-          showSeconds: true,
-          showDate: true,
-          interval: 30,
-          audio: false,
-          clockType: 'analog',
-          theme: 'dark',
-        })
-      }
-
-      // ── Routine ───────────────────────────────────────────────────────────
-
-      function testRoutineStill() {
-        send({
-          command: 'loadModule',
-          type: 'Routine',
-          module_id: ROUTINE_ID,
-          duration: 600000,
-          audio: false,
-        })
-      }
-
-      function testRoutineTon() {
-        send({
-          command: 'loadModule',
-          type: 'Routine',
-          module_id: ROUTINE_ID,
-          duration: 600000,
-          audio: true,
-          voice: 'male',
-        })
-      }
-
-      function testRoutineSimple() {
-        send({
-          command: 'loadModule',
-          type: 'Routine',
-          module_id: ROUTINE_ID,
-          duration: 600000,
-          audio: true,
-          voice: 'female',
-          mode: 'simple',
-        })
-      }
-
-      function testRoutinePauseShort() {
-        // Short scale (3s) so the module-start pause is quick to hear.
-        send({
-          command: 'loadModule',
-          type: 'Routine',
-          module_id: ROUTINE_ID,
-          duration: 600000,
-          audio: true,
-          voice: 'female',
-          pause: 'short',
-        })
-      }
-
-      function testRoutinePauseLong() {
-        send({
-          command: 'loadModule',
-          type: 'Routine',
-          module_id: ROUTINE_ID,
-          duration: 600000,
-          audio: true,
-          voice: 'female',
-          pause: 'long',
-        })
-      }
-
-      function testRoutineRepeat() {
-        send({
-          command: 'loadModule',
-          type: 'Routine',
-          module_id: ROUTINE_ID,
-          duration: 600000,
-          audio: true,
-          voice: 'female',
-          pause: 'short',
-          repeat: true,
-        })
-      }
-
-      function testRoutineNoSound() {
-        send({
-          command: 'loadModule',
-          type: 'Routine',
-          module_id: ROUTINE_ID,
-          duration: 600000,
-          audio: false,
-          transitionSound: false,
-        })
-      }
-
-      function testRoutineDark() {
-        send({
-          command: 'loadModule',
-          type: 'Routine',
-          module_id: ROUTINE_ID,
-          duration: 600000,
-          audio: false,
-          mode: 'overview',
-          theme: 'dark',
-        })
-      }
-
-      function testRoutineDarkSimple() {
-        send({
-          command: 'loadModule',
-          type: 'Routine',
-          module_id: ROUTINE_ID,
-          duration: 600000,
-          audio: false,
-          mode: 'simple',
-          theme: 'dark',
-        })
-      }
-
-      // ── Wetter ────────────────────────────────────────────────────────────
-
-      function testWeatherIcon() {
-        send({
-          command: 'loadModule',
-          type: 'Weather',
-          module_id: WEATHER_ID,
-          duration: 300000,
-          audio: false,
-          imageSource: 'icon',
-        })
-      }
-
-      function testWeatherPhoto() {
-        send({
-          command: 'loadModule',
-          type: 'Weather',
-          module_id: WEATHER_ID,
-          duration: 300000,
-          audio: false,
-          imageSource: 'photo',
-        })
-      }
-
-      function testWeatherTemp() {
-        send({
-          command: 'loadModule',
-          type: 'Weather',
-          module_id: WEATHER_ID,
-          duration: 300000,
-          audio: false,
-          imageSource: 'icon',
-          showTemperature: true,
-        })
-      }
-
-      function testWeatherTomorrow() {
-        send({
-          command: 'loadModule',
-          type: 'Weather',
-          module_id: WEATHER_ID,
-          duration: 300000,
-          audio: true,
-          voice: 'female',
-          announceTomorrow: true,
-        })
-      }
-
-      function testWeatherFemale() {
-        send({
-          command: 'loadModule',
-          type: 'Weather',
-          module_id: WEATHER_ID,
-          duration: 300000,
-          audio: true,
-          voice: 'female',
-        })
-      }
-
-      function testWeatherMale() {
-        send({
-          command: 'loadModule',
-          type: 'Weather',
-          module_id: WEATHER_ID,
-          duration: 300000,
-          audio: true,
-          voice: 'male',
-        })
-      }
-
-      function testWeatherMuted() {
-        send({
-          command: 'loadModule',
-          type: 'Weather',
-          module_id: WEATHER_ID,
-          duration: 300000,
-          audio: false,
-        })
-      }
-
-      function testWeatherRepeat() {
-        send({
-          command: 'loadModule',
-          type: 'Weather',
-          module_id: WEATHER_ID,
-          duration: 300000,
-          audio: true,
-          voice: 'female',
-          pause: 'short',
-          repeat: true,
-        })
-      }
-
-      function testWeatherPauseShort() {
-        // Short scale (3s) so the module-start pause is quick to hear.
-        send({
-          command: 'loadModule',
-          type: 'Weather',
-          module_id: WEATHER_ID,
-          duration: 300000,
-          audio: true,
-          voice: 'female',
-          pause: 'short',
-        })
-      }
-
-      function testWeatherNoSound() {
-        send({
-          command: 'loadModule',
-          type: 'Weather',
-          module_id: WEATHER_ID,
-          duration: 300000,
-          audio: false,
-          transitionSound: false,
-        })
-      }
+      // ── Weather test-cycle (dev/QA only — not a real schema field) ────────
+      // testCycle steps through a fixed list of synthetic time/temperature/
+      // weather states (weatherTestScenarios.ts), a new one per module load —
+      // click repeatedly to page through all of them. Both buttons share one
+      // cursor (same underlying scenario list), so interleaving clicks
+      // between the two just continues the sequence.
 
       function testWeatherCycle() {
-        // testCycle steps through a fixed list of synthetic time/temperature/
-        // weather states (weatherTestScenarios.ts), a new one per module load —
-        // click repeatedly to page through all of them. Shares its cursor with
-        // testWeatherCyclePhoto() below (same underlying scenario list), so
-        // interleaving clicks between the two just continues the sequence.
         send({
           command: 'loadModule',
           type: 'Weather',
@@ -1127,8 +1024,6 @@
       }
 
       function testWeatherCyclePhoto() {
-        // Same test cycle, but with imageSource "photo" — use this one to
-        // check the real JPGs in weather-photos/ rather than the icons.
         send({
           command: 'loadModule',
           type: 'Weather',
@@ -1162,6 +1057,8 @@
         entry.textContent = `${new Date().toLocaleTimeString()} — ${text}`
         el.prepend(entry)
       }
+
+      buildModuleSections()
     </script>
   </body>
 </html>
