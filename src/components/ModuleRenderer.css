@@ -5,10 +5,10 @@
   justify-content: center;
   width: 100%;
   height: 100svh;
-  background: #f09644;
+  background: #1f6fb2;
 }
 
 .idle-screen img {
-  width: 220px;
-  opacity: 0.85;
+  height: 50svh;
+  width: auto;
 }

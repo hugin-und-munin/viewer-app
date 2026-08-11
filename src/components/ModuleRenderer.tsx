@@ -3,7 +3,7 @@ import type { Module } from '../core/moduleDisplayManager'
 import { onModuleChange, offModuleChange } from '../core/moduleDisplayManager'
 import ModuleErrorBoundary from './ModuleErrorBoundary'
 import { playTransitionSound } from '../utils/transitionSound'
-import logo from '../assets/logo.png'
+import delfin from '../assets/delfin.png'
 import './ModuleRenderer.css'
 
 function IdleScreen() {
@@ -15,7 +15,7 @@ function IdleScreen() {
 
   return (
     <div className="idle-screen">
-      <img src={logo} alt="Hugin und Munin" />
+      <img src={delfin} alt="" />
       {version && (
         <span
           style={{

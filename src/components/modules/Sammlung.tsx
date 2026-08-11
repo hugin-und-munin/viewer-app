@@ -5,7 +5,7 @@ import { speak, stop, type TtsVoice } from '../../utils/tts'
 import { READING_RATE, SHORT_PAUSE_MS, LONG_PAUSE_MS } from '../../utils/ttsPacing'
 import { useMediaBlobUrl } from '../../utils/useMediaBlobUrl'
 import type { SammlungProps } from '../../types/modules'
-import logo from '../../assets/logo.png'
+import delfin from '../../assets/delfin.png'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -231,8 +231,8 @@ function StatusScreen({ text }: { text: string }) {
 // ─── Audio mode (mode = "audio") ───────────────────────────────────────────────
 
 // No per-item visual content to show, so — per an explicit product decision —
-// this just shows the same look as the idle screen (logo on the brand
-// orange) while the collection plays through as a simple looping playlist.
+// this just shows the same look as the idle screen (dolphin on blue) while
+// the collection plays through as a simple looping playlist.
 function AudioMode({
   items,
   collection,
@@ -291,10 +291,10 @@ function AudioMode({
         justifyContent: 'center',
         width: '100%',
         height: '100vh',
-        bgcolor: '#f09644',
+        bgcolor: '#1f6fb2',
       }}
     >
-      <Box component="img" src={logo} alt="" sx={{ width: 220, opacity: 0.85 }} />
+      <Box component="img" src={delfin} alt="" sx={{ height: '50vh', width: 'auto' }} />
       <audio ref={audioRef} preload="auto" style={{ display: 'none' }} />
     </Box>
   )

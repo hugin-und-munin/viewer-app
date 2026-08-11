@@ -26,11 +26,11 @@ const PAST_TEXT = '#424242'
 // Only the page chrome (background, headings, status text) switches with the
 // theme — appointment cards keep their own day-color-tinted look regardless,
 // same as Chat's message bubble staying light in both themes.
-type RoutineColors = { bg: string; text: string; textSecondary: string }
+type RoutineColors = { bg: string; text: string }
 
 const ROUTINE_COLORS: Record<'light' | 'dark', RoutineColors> = {
-  light: { bg: 'white', text: 'black', textSecondary: '#616161' },
-  dark: { bg: '#18181b', text: '#f4f4f5', textSecondary: '#a1a1aa' },
+  light: { bg: 'white', text: 'black' },
+  dark: { bg: '#18181b', text: '#f4f4f5' },
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -623,36 +623,18 @@ function SimpleView({
   active,
   next,
   dayColor,
-  colors,
 }: {
   active: Appointment | undefined
   next: Appointment | undefined
   dayColor: string
-  colors: RoutineColors
 }) {
   const featured = active ?? next
   const isActive = !!active
   const showNextCard = isActive && !!next
   const { ref, size: containerSize } = useRowSize(false)
 
-  if (!featured) {
-    return (
-      <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Typography
-          role="status"
-          sx={{
-            fontFamily: FONT,
-            fontSize: '2rem',
-            color: colors.textSecondary,
-            textAlign: 'center',
-            px: 6,
-          }}
-        >
-          Für heute sind keine weiteren Termine geplant.
-        </Typography>
-      </Box>
-    )
-  }
+  // Nothing scheduled — leave the screen empty rather than saying so.
+  if (!featured) return null
 
   const { featuredSize, nextSize } = computeSimpleCardSizes(containerSize, showNextCard)
 
@@ -863,7 +845,6 @@ function Routine({
           active={todayActiveAppointment}
           next={todayNextAppointment}
           dayColor={dayColor}
-          colors={colors}
         />
       ) : (
         <Box
@@ -882,26 +863,19 @@ function Routine({
             '&::-webkit-scrollbar': { display: 'none' },
           }}
         >
-          {visible.length === 0 ? (
-            <Typography
-              role="status"
-              sx={{ fontFamily: FONT, fontSize: '2rem', color: colors.textSecondary }}
-            >
-              Keine Termine
-            </Typography>
-          ) : (
-            visible.map((a) => (
-              <AppointmentCard
-                key={a.id}
-                appointment={a}
-                isActive={a.id === activeAppointment?.id}
-                isPast={a.id !== activeAppointment?.id && new Date(a.end_at) <= now}
-                dayColor={dayColor}
-                size={cardSize}
-                animated={true}
-              />
-            ))
-          )}
+          {visible.length === 0
+            ? null
+            : visible.map((a) => (
+                <AppointmentCard
+                  key={a.id}
+                  appointment={a}
+                  isActive={a.id === activeAppointment?.id}
+                  isPast={a.id !== activeAppointment?.id && new Date(a.end_at) <= now}
+                  dayColor={dayColor}
+                  size={cardSize}
+                  animated={true}
+                />
+              ))}
         </Box>
       )}
     </Box>
