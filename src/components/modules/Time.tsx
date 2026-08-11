@@ -245,7 +245,6 @@ function Time({
   const repeatGapMs = LONG_PAUSE_MS[pause] ?? 0
   const [now, setNow] = useState(new Date())
   const interruptDoneRef = useRef<(() => void) | null>(null)
-  const hasStartedRef = useRef(false)
   const onModuleDoneRef = useRef(onModuleDone)
   useEffect(() => {
     onModuleDoneRef.current = onModuleDone
@@ -287,12 +286,13 @@ function Time({
       }
     }
 
-    // Pause before the module's very first utterance too — only once per
-    // module instance (a fresh mount per showModule() call), not on every
-    // re-run of this effect within the same showing.
-    const startDelay = hasStartedRef.current ? 0 : repeatGapMs
-    hasStartedRef.current = true
-    const startTimer = setTimeout(playOnce, startDelay)
+    // Pause before speaking, same as every subsequent repeat — applies
+    // unconditionally (not just "first time only") so it can't be defeated
+    // by React StrictMode's dev-only mount→cleanup→remount replay: a
+    // "hasStarted" ref flag mutated here would leak `true` across that
+    // replay (the phantom cleanup cancels the timer but can't un-mutate a
+    // ref), so the real run would see it already set and skip the delay.
+    const startTimer = setTimeout(playOnce, repeatGapMs)
 
     return () => {
       clearTimeout(startTimer)

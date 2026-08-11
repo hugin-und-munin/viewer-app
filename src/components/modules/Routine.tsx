@@ -349,7 +349,6 @@ function useTTS(
   voice?: TtsVoice,
 ) {
   const interruptDoneRef = useRef<(() => void) | null>(null)
-  const hasStartedRef = useRef(false)
 
   const paramsRef = useRef({
     active,
@@ -426,12 +425,11 @@ function useTTS(
       }
     }
 
-    // Pause before the module's very first utterance too — only once per
-    // module instance (a fresh mount per showModule() call), not on every
-    // re-run of this effect within the same showing (e.g. active/next changing).
-    const startDelay = hasStartedRef.current ? 0 : rg
-    hasStartedRef.current = true
-    const startTimer = setTimeout(playOnce, startDelay)
+    // Pause before speaking, same as every subsequent repeat — applies
+    // unconditionally, including when active/next changes mid-display, so
+    // it can't be defeated by React StrictMode's dev-only mount→cleanup→
+    // remount replay (see Time.tsx for the full explanation).
+    const startTimer = setTimeout(playOnce, rg)
 
     return () => {
       clearTimeout(startTimer)

@@ -360,7 +360,6 @@ function Weather({
   const repeatGapMs = LONG_PAUSE_MS[pause] ?? 0
 
   const interruptDoneRef = useRef<(() => void) | null>(null)
-  const hasStartedRef = useRef(false)
   const onModuleDoneRef = useRef(onModuleDone)
   useEffect(() => {
     onModuleDoneRef.current = onModuleDone
@@ -406,11 +405,10 @@ function Weather({
       }
     }
 
-    // Pause before the module's very first utterance too — only once per
-    // module instance, matching Time/Routine's convention.
-    const startDelay = hasStartedRef.current ? 0 : repeatGapMs
-    hasStartedRef.current = true
-    const startTimer = setTimeout(playOnce, startDelay)
+    // Pause before speaking, same as every subsequent repeat — applies
+    // unconditionally so it can't be defeated by React StrictMode's dev-only
+    // mount→cleanup→remount replay (see Time.tsx for the full explanation).
+    const startTimer = setTimeout(playOnce, repeatGapMs)
 
     return () => {
       clearTimeout(startTimer)
