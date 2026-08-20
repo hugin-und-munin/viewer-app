@@ -27,6 +27,39 @@ interface ApiModule {
 
 const PREFETCH_DATE_FILE = 'prefetch-date.json'
 
+// How many requests (media downloads, profile lookups, appsettings detail
+// fetches) run at once during a prefetch. Unbounded here previously meant
+// a single module with, say, 200 images fired all 200 downloads — and 200
+// IPC round-trips (each with a base64 encode + disk write) — at the exact
+// same instant, which is real load on both the API server and the
+// Electron main process for no benefit (prefetch has no deadline; nothing
+// is waiting on it). 10 is small enough that it reads as "a handful of
+// ordinary requests" to the server rather than a burst, while still
+// clearing a few hundred already-mostly-cached items well within a
+// minute — ensureCached's own skip-if-cached check means most runs only
+// do real work for the few items that are actually new.
+const FETCH_CONCURRENCY = 10
+
+// Runs `fn` over `items` with at most `limit` calls in flight at once — a
+// small worker pool, no external dependency. Each worker just keeps
+// pulling the next item off a shared index until the list is exhausted.
+// Per-item failures are swallowed here (matching the previous
+// Promise.allSettled behavior) so one bad item never stops the rest.
+async function mapWithConcurrency<T>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<void>,
+): Promise<void> {
+  let next = 0
+  async function worker() {
+    while (next < items.length) {
+      const item = items[next++]
+      await fn(item).catch(() => {})
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
+}
+
 async function prefetchModule(moduleId: string): Promise<void> {
   let entries: ModuleDataEntry[]
   try {
@@ -44,20 +77,19 @@ async function prefetchModule(moduleId: string): Promise<void> {
     if (typeof entry.data.user_id === 'string') userIds.add(entry.data.user_id)
   }
 
-  await Promise.allSettled(
-    [...userIds].map((id) =>
-      getApi()
-        .get<UserProfile>(`/users/${id}`)
-        .then((user) => {
-          if (user.media_id) mediaIds.add(user.media_id)
-        })
-        .catch(() => {}),
-    ),
+  await mapWithConcurrency([...userIds], FETCH_CONCURRENCY, (id) =>
+    getApi()
+      .get<UserProfile>(`/users/${id}`)
+      .then((user) => {
+        if (user.media_id) mediaIds.add(user.media_id)
+      }),
   )
 
   // ensureCached skips anything already on disk on its own — so a re-run
   // only does actual work for media that's newly appeared since last time.
-  await Promise.allSettled([...mediaIds].map((id) => getApi().ensureCached(`/media/${id}`)))
+  await mapWithConcurrency([...mediaIds], FETCH_CONCURRENCY, (id) =>
+    getApi().ensureCached(`/media/${id}`),
+  )
 }
 
 async function prefetchAppSettings(deviceId: string): Promise<void> {
@@ -75,12 +107,10 @@ async function prefetchAppSettings(deviceId: string): Promise<void> {
     (s) => new Date(s.valid_from) <= cutoff && (s.valid_to === null || new Date(s.valid_to) >= now),
   )
 
-  await Promise.allSettled(
-    relevant.map((s) =>
-      getApi()
-        .get<AppSettingsDetail>(`/devices/${deviceId}/appsettings/${s.id}`)
-        .catch(() => {}),
-    ),
+  await mapWithConcurrency(relevant, FETCH_CONCURRENCY, (s) =>
+    getApi()
+      .get<AppSettingsDetail>(`/devices/${deviceId}/appsettings/${s.id}`)
+      .then(() => {}),
   )
 }
 
