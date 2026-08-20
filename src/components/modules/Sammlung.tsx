@@ -100,27 +100,48 @@ function playAudioElement(
 // two ways of playing the same collection doesn't reset or fork progress.
 const POSITION_CACHE_FILE = 'sammlung-positions.json'
 
-async function readCachedPosition(cacheKey: string): Promise<number> {
-  if (!window.electronAPI || !cacheKey) return 0
+// In-memory truth for the running app process — set synchronously, so it's
+// immediately visible to a component that remounts moments later (e.g. the
+// control panel's "load" command re-showing the same module: showModule()
+// mints a fresh instanceId on every call, forcing a real unmount+mount).
+// The disk cache write below is asynchronous (an IPC round trip plus file
+// I/O), so without this, a quick remount can read the file before the
+// previous instance's write has landed and resume at the same item all
+// over again. Disk is still needed as the source of truth across an actual
+// app restart, where this map is gone too — that gap is unavoidable (no
+// way to make a disk write instant), but same-process remounts no longer
+// have any race window at all.
+const sessionLastShown = new Map<string, string>()
+
+// Identifies the last-shown item by its stable id, not its array position —
+// `items` is re-sorted by `position` on every load, so a plain numeric
+// index silently points at a different item once anything gets reordered
+// in content-app. An id survives that; an index doesn't.
+async function readCachedItemId(cacheKey: string): Promise<string | null> {
+  if (sessionLastShown.has(cacheKey)) return sessionLastShown.get(cacheKey)!
+  if (!window.electronAPI || !cacheKey) return null
   try {
     const raw = await window.electronAPI.cacheRead(POSITION_CACHE_FILE)
-    if (!raw) return 0
-    const map = JSON.parse(raw) as Record<string, number>
-    return map[cacheKey] ?? 0
+    if (!raw) return null
+    const map = JSON.parse(raw) as Record<string, string>
+    return map[cacheKey] ?? null
   } catch {
-    return 0
+    return null
   }
 }
 
-async function writeCachedPosition(cacheKey: string, index: number): Promise<void> {
+async function writeCachedItemId(cacheKey: string, itemId: string): Promise<void> {
+  sessionLastShown.set(cacheKey, itemId)
   if (!window.electronAPI || !cacheKey) return
   try {
     const raw = await window.electronAPI.cacheRead(POSITION_CACHE_FILE)
-    const map = raw ? (JSON.parse(raw) as Record<string, number>) : {}
-    map[cacheKey] = index
+    const map = raw ? (JSON.parse(raw) as Record<string, string>) : {}
+    map[cacheKey] = itemId
     await window.electronAPI.cacheWrite(POSITION_CACHE_FILE, JSON.stringify(map))
   } catch {
-    // best-effort — losing the cached position just resumes at item 1
+    // best-effort — losing the on-disk position just resumes at item 1
+    // after a real app restart; sessionLastShown above still protects
+    // same-session remounts regardless of whether this disk write works.
   }
 }
 
@@ -130,27 +151,42 @@ async function writeCachedPosition(cacheKey: string, index: number): Promise<voi
 // been checked — so callers can hold off starting playback on index 0
 // until they know whether 0 is actually right; otherwise the true starting
 // item could briefly play/show before snapping to the resumed one.
-function useCachedIndex(cacheKey: string, itemCount: number) {
+function useCachedIndex(cacheKey: string, items: SammlungItem[]) {
   const [index, setIndex] = useState(0)
   const [ready, setReady] = useState(false)
+  const itemCount = items.length
+  const currentId = items[index]?.id
 
   useEffect(() => {
     let settled = false
 
-    function resolve(cached: number) {
+    function resolve(cachedId: string | null) {
       if (settled) return
       settled = true
       clearTimeout(timeoutId)
-      if (cached > 0 && cached < itemCount) setIndex(cached)
+      // The cached id is whatever was on screen the moment we last
+      // stopped — written the instant playback moved onto it, not once it
+      // finished. A crash/reload/shutdown mid-display leaves that same
+      // item cached, so resuming at it verbatim replays what was already
+      // showing. Resume one past its *current* position instead — found
+      // by id, not by trusting the old index, since a reorder in
+      // content-app changes which item any given index points at. Worst
+      // case (interruption landed in the brief gap between items) skips
+      // an item that hadn't started yet, which is far less noticeable
+      // than guaranteed repeats.
+      if (cachedId) {
+        const pos = items.findIndex((i) => i.id === cachedId)
+        if (pos !== -1 && itemCount > 0) setIndex((pos + 1) % itemCount)
+      }
       setReady(true)
     }
 
-    readCachedPosition(cacheKey).then(resolve)
+    readCachedItemId(cacheKey).then(resolve)
     // Safety net: a cache read that hangs or never resolves must not block
     // playback forever — that's a strictly worse regression than the cosmetic
     // issue this cache is fixing. Worst case, this just falls back to
     // starting at index 0, exactly like before the cache existed.
-    const timeoutId = setTimeout(() => resolve(0), 800)
+    const timeoutId = setTimeout(() => resolve(null), 800)
 
     return () => {
       settled = true
@@ -160,9 +196,9 @@ function useCachedIndex(cacheKey: string, itemCount: number) {
   }, [])
 
   useEffect(() => {
-    if (!ready) return
-    writeCachedPosition(cacheKey, index)
-  }, [ready, cacheKey, index])
+    if (!ready || !currentId) return
+    writeCachedItemId(cacheKey, currentId)
+  }, [ready, cacheKey, currentId])
 
   return [index, setIndex, ready] as const
 }
@@ -180,7 +216,7 @@ function useBackgroundPlaylist(
   enabled: boolean,
   backgroundCollection: string,
 ) {
-  const [index, setIndex, ready] = useCachedIndex(`audio:${backgroundCollection}`, items.length)
+  const [index, setIndex, ready] = useCachedIndex(`audio:${backgroundCollection}`, items)
   // A single-track "playlist" wraps index back to the same 0 every time —
   // React then skips the re-render (unchanged primitive state), so `url`
   // below never changes either and playback would silently never restart.
@@ -244,7 +280,7 @@ function AudioMode({
   onShutdownRequest: SammlungProps['onShutdownRequest']
   onModuleDone: SammlungProps['onModuleDone']
 }) {
-  const [index, setIndex, ready] = useCachedIndex(`audio:${collection}`, items.length)
+  const [index, setIndex, ready] = useCachedIndex(`audio:${collection}`, items)
   // See useBackgroundPlaylist above — a single-item collection needs this
   // too, otherwise a one-track "playlist" plays once and goes silent.
   const [playToken, setPlayToken] = useState(0)
@@ -333,7 +369,7 @@ function ImageMode({
   onShutdownRequest: SammlungProps['onShutdownRequest']
   onModuleDone: SammlungProps['onModuleDone']
 }) {
-  const [index, setIndex, ready] = useCachedIndex(`image:${collection}`, items.length)
+  const [index, setIndex, ready] = useCachedIndex(`image:${collection}`, items)
 
   const current = items[index]
   const { url: imageUrl, settled: imageSettled } = useMediaBlobUrl(current?.media_id)
