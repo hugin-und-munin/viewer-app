@@ -699,6 +699,20 @@ function Routine({
   const periodLabel = getPeriodLabel(getTimeSlot(now))
 
   const { appointments, loading, error } = useAppointments(module_id)
+
+  const onModuleDoneRef = useRef(onModuleDone)
+  useEffect(() => {
+    onModuleDoneRef.current = onModuleDone
+  }, [onModuleDone])
+
+  // No data (typically: server/network unreachable) — nothing useful to
+  // show, so skip straight to the next module instead of sitting on an
+  // error screen for the module's whole duration. Same mechanism as
+  // Weather's own equivalent.
+  useEffect(() => {
+    if (error) onModuleDoneRef.current?.()
+  }, [error])
+
   const { ref: rowRef, size: rowSize } = useRowSize(loading)
   const ttsVoice = audio ? voice : undefined
   const rate = READING_RATE[readingSpeed] ?? 1.0
@@ -761,7 +775,7 @@ function Routine({
   }, [activeIndex, cardSize, rowRef])
 
   if (loading) return <StatusScreen text="Lade Termine..." colors={colors} />
-  if (error) return <StatusScreen text={`Fehler: ${error}`} colors={colors} role="alert" />
+  if (error) return <StatusScreen text="Termine nicht verfügbar" colors={colors} role="alert" />
 
   return (
     <Box
