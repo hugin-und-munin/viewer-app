@@ -449,7 +449,11 @@ function useMessagePlayback(params: {
                 repeatGapMsRef.current,
               )
             } else {
-              advance()
+              // Same long-pause value used between messages generally —
+              // gives the (possibly just-repeated) message a moment to
+              // land before the next one starts, instead of advancing the
+              // instant speech ends.
+              timerRef.current = setTimeout(advance, repeatGapMsRef.current)
             }
           }
           speakMessage(
@@ -558,6 +562,14 @@ function useMessagePlayback(params: {
           if (audio && repeatRef.current && !audioRepeated) {
             audioRepeated = true
             timerRef.current = setTimeout(doPlayback, repeatGapMsRef.current)
+          } else if (audio) {
+            // Same long-pause value used between messages generally —
+            // gives the (possibly just-repeated) recording a moment to
+            // land before the next message starts, instead of advancing
+            // the instant it ends. Not applied with audio off — pauses
+            // are a TTS-pacing concept, and silent mode has none anywhere
+            // else in this flow either.
+            timerRef.current = setTimeout(advance, repeatGapMsRef.current)
           } else {
             advance()
           }
