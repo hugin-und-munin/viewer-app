@@ -148,36 +148,71 @@ const POSITION_CACHE_FILE = 'sammlung-positions.json'
 // have any race window at all.
 const sessionLastShown = new Map<string, string>()
 
+// Loaded from disk exactly once per process, lazily, and never re-read
+// after that — only used as a base for keys sessionLastShown hasn't
+// touched yet this session (a collection nobody's shown since the app
+// started). Re-reading the file on every write is what caused the actual
+// bug: two writes for different keys (e.g. the image index and a
+// background playlist's own index) landing close together would both read
+// the same pre-update content, and whichever finished writing last threw
+// away the other's change — silently corrupting the file with a stale
+// position for one of the two keys. sessionLastShown is instead the one
+// always-current source for every key touched this session, and gets
+// merged over this base at write time (see schedulePositionSave), so
+// there's nothing left to race.
+let diskBaseSnapshot: Record<string, string> | null = null
+let diskBaseLoad: Promise<Record<string, string>> | null = null
+
+async function loadDiskBaseSnapshot(): Promise<Record<string, string>> {
+  if (diskBaseSnapshot) return diskBaseSnapshot
+  if (!diskBaseLoad) {
+    diskBaseLoad = (async () => {
+      if (!window.electronAPI) return {}
+      try {
+        const raw = await window.electronAPI.cacheRead(POSITION_CACHE_FILE)
+        return raw ? (JSON.parse(raw) as Record<string, string>) : {}
+      } catch {
+        return {}
+      }
+    })()
+  }
+  diskBaseSnapshot = await diskBaseLoad
+  return diskBaseSnapshot
+}
+
+let positionSaveTimer: ReturnType<typeof setTimeout> | undefined
+
+// Debounced so a burst of writes (several keys changing within the same
+// moment) coalesces into one file write instead of one each — and always
+// serializes the merged, currently-correct state read fresh from
+// sessionLastShown at the moment it actually fires, not whatever it was
+// when the timer was (re)started.
+function schedulePositionSave(): void {
+  if (!window.electronAPI) return
+  clearTimeout(positionSaveTimer)
+  positionSaveTimer = setTimeout(() => {
+    loadDiskBaseSnapshot().then((base) => {
+      const merged = { ...base, ...Object.fromEntries(sessionLastShown) }
+      window.electronAPI!.cacheWrite(POSITION_CACHE_FILE, JSON.stringify(merged)).catch(() => {})
+    })
+  }, 500)
+}
+
 // Identifies the last-shown item by its stable id, not its array position —
 // `items` is re-sorted by `position` on every load, so a plain numeric
 // index silently points at a different item once anything gets reordered
 // in content-app. An id survives that; an index doesn't.
 async function readCachedItemId(cacheKey: string): Promise<string | null> {
   if (sessionLastShown.has(cacheKey)) return sessionLastShown.get(cacheKey)!
-  if (!window.electronAPI || !cacheKey) return null
-  try {
-    const raw = await window.electronAPI.cacheRead(POSITION_CACHE_FILE)
-    if (!raw) return null
-    const map = JSON.parse(raw) as Record<string, string>
-    return map[cacheKey] ?? null
-  } catch {
-    return null
-  }
+  const base = await loadDiskBaseSnapshot()
+  return base[cacheKey] ?? null
 }
 
 async function writeCachedItemId(cacheKey: string, itemId: string): Promise<void> {
+  // Synchronous, before any await — see sessionLastShown's own comment
+  // above for why that matters for a same-session remount.
   sessionLastShown.set(cacheKey, itemId)
-  if (!window.electronAPI || !cacheKey) return
-  try {
-    const raw = await window.electronAPI.cacheRead(POSITION_CACHE_FILE)
-    const map = raw ? (JSON.parse(raw) as Record<string, string>) : {}
-    map[cacheKey] = itemId
-    await window.electronAPI.cacheWrite(POSITION_CACHE_FILE, JSON.stringify(map))
-  } catch {
-    // best-effort — losing the on-disk position just resumes at item 1
-    // after a real app restart; sessionLastShown above still protects
-    // same-session remounts regardless of whether this disk write works.
-  }
+  schedulePositionSave()
 }
 
 // Shared by ImageMode and AudioMode: an index that starts from wherever this
@@ -547,6 +582,12 @@ function ImageMode({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, current?.id, imageAudioMode, isVoiceCaption, captionAudioSettled])
 
+  // Same reasoning as AudioMode gating playAudioElement on `ready`: `index`
+  // starts at 0 until the cached resume position has actually been
+  // resolved, so rendering unconditionally would flash the wrong (first)
+  // item on every remount — i.e. on every rotation back to this module —
+  // right before snapping to the real one.
+  if (!ready) return <StatusScreen text="Lade Sammlung…" />
   if (!current) return <StatusScreen text="Keine Bilder in dieser Sammlung" />
 
   return (
