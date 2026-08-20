@@ -732,7 +732,14 @@ function ChatBubble({
 }) {
   const isDark = colors.bubbleBorder === colors.bubbleBg
   return (
-    <Box sx={{ flex: 1, maxHeight: '100%', display: 'flex', flexDirection: 'column' }}>
+    // maxWidth caps this at half the row no matter how long the message
+    // is — the avatar takes whatever's left (see its own comment), so this
+    // is what actually keeps the avatar from getting squeezed by a long
+    // message: it's a hard ceiling on this side, not just a flex ratio
+    // that a large enough message could still grow past.
+    <Box
+      sx={{ flex: 1, maxWidth: '50%', maxHeight: '100%', display: 'flex', flexDirection: 'column' }}
+    >
       <Box
         ref={bubbleRef}
         sx={{
@@ -852,9 +859,12 @@ function TextMessage({
               justifyContent: 'center',
             }}
           >
-            {/* Sized off the container's own box (not vw/vh) so it's exactly
-                half the row's width, but never taller than the row itself —
-                width and height both resolve to whichever is smaller. */}
+            {/* Sized off the container's own box (not vw/vh) so it takes
+                whatever the bubble (capped at 50% width, see ChatBubble)
+                leaves it — at least half the row, growing further if the
+                bubble is narrower than that. Only ever shrinks below that
+                baseline by a little, from row height / gap, never because
+                a long message pushed it out. */}
             <SenderAvatar
               username={msg.username || 'Unbekannt'}
               senderMediaId={msg.sender_media_id}
