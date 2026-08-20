@@ -86,6 +86,41 @@ function playAudioElement(
   el.load()
 }
 
+const BACKGROUND_FADE_MS = 4000
+
+// Fades an already-playing element's volume down to 0 over `ms`, then
+// pauses it and restores full volume (so its next play() starts normally).
+// A background track cutting off dead on every module switch is jarring —
+// this gives it a quick, graceful exit instead. No-op straight to onDone
+// if the element isn't actually playing (nothing to fade).
+//
+// Plain setInterval, not requestAnimationFrame — this call gates the whole
+// module scheduler (onDone is what eventually calls onModuleDone), and rAF
+// only promises to fire while the page is actually painting. There's
+// nothing visual here to synchronize with, so there's no reason to depend
+// on that at all — a stalled rAF would otherwise wedge the scheduler on
+// this module until its 2-minute shutdown watchdog forces it forward.
+function fadeOutAndPause(el: HTMLAudioElement, ms: number, onDone: () => void): void {
+  if (el.paused) {
+    onDone()
+    return
+  }
+  const startVolume = el.volume
+  const stepMs = 50
+  const totalSteps = Math.max(1, Math.round(ms / stepMs))
+  let step = 0
+  const intervalId = setInterval(() => {
+    step++
+    el.volume = Math.max(0, startVolume * (1 - step / totalSteps))
+    if (step >= totalSteps) {
+      clearInterval(intervalId)
+      el.pause()
+      el.volume = startVolume
+      onDone()
+    }
+  }, stepMs)
+}
+
 // ─── Slideshow position cache (per collection, image mode only) ───────────────
 
 // Same mechanism as core/cachePrefetcher.ts — a JSON file on disk, read and
@@ -396,13 +431,26 @@ function ImageMode({
 
   useEffect(() => {
     onShutdownRequest?.(() => {
+      // A caption gets a "let it finish" grace period (below) — captions
+      // and the background playlist are mutually exclusive (imageAudioMode
+      // is 'caption' XOR 'playlist'), so the playlist is never actually
+      // playing while one is capturing anyway.
       if (capturingRef.current) {
         interruptDoneRef.current = () => onModuleDoneRef.current?.()
+        return
+      }
+      // Fade the background track out instead of cutting it dead — still
+      // reports done once the fade completes (not before), so the next
+      // module can't start its own audio while this one's is still
+      // sounding. No-op straight to onModuleDone if nothing's playing.
+      const bgAudio = backgroundAudioRef.current
+      if (bgAudio) {
+        fadeOutAndPause(bgAudio, BACKGROUND_FADE_MS, () => onModuleDoneRef.current?.())
       } else {
         onModuleDoneRef.current?.()
       }
     })
-  }, [onShutdownRequest])
+  }, [onShutdownRequest, backgroundAudioRef])
 
   const advance = () => {
     if (interruptDoneRef.current) {
