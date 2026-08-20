@@ -68,6 +68,25 @@ function registerConfigHandlers() {
   ipcMain.handle("app:version", () => app.getVersion());
 }
 
+async function writeCacheFile(filename: string, data: string): Promise<void> {
+  const filePath = path.join(app.getPath("userData"), filename);
+  const tmpPath = `${filePath}.${Math.random().toString(36).slice(2)}.tmp`;
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  await fs.writeFile(tmpPath, data, "utf-8");
+  await fs.rename(tmpPath, filePath);
+}
+
+// Renaming the temp file onto the destination is not safe against two
+// concurrent writes to the *same* filename on Windows — the second rename
+// can throw EPERM while the first is still resolving the destination
+// (several renderer-side callers can legitimately target the same cache
+// file at once, e.g. Sammlung's per-collection position cache). Queue
+// writes per filename so they always run one at a time; each caller still
+// gets a promise settling with its own write's outcome. Entries are
+// removed once idle so this doesn't grow forever across e.g. the many
+// distinct media-blob filenames prefetch writes over an app's lifetime.
+const writeQueues = new Map<string, Promise<void>>();
+
 function registerCacheHandlers() {
   ipcMain.handle("cache:read", async (_event, filename: string): Promise<string | null> => {
     const filePath = path.join(app.getPath("userData"), filename);
@@ -78,12 +97,16 @@ function registerCacheHandlers() {
     }
   });
 
-  ipcMain.handle("cache:write", async (_event, filename: string, data: string): Promise<void> => {
-    const filePath = path.join(app.getPath("userData"), filename);
-    const tmpPath = `${filePath}.${Math.random().toString(36).slice(2)}.tmp`;
-    await fs.mkdir(path.dirname(filePath), { recursive: true });
-    await fs.writeFile(tmpPath, data, "utf-8");
-    await fs.rename(tmpPath, filePath);
+  ipcMain.handle("cache:write", (_event, filename: string, data: string): Promise<void> => {
+    const previous = writeQueues.get(filename) ?? Promise.resolve();
+    const next = previous.catch(() => {}).then(() => writeCacheFile(filename, data));
+    writeQueues.set(filename, next);
+    next
+      .finally(() => {
+        if (writeQueues.get(filename) === next) writeQueues.delete(filename);
+      })
+      .catch(() => {});
+    return next;
   });
 }
 
