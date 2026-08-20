@@ -1,6 +1,11 @@
 import { loadConfig } from './deviceConfig'
 import { getTokenManager, AuthError } from './tokenManager'
-import { reportFailure, reportSuccess, reportAuthFailure, reportAuthSuccess } from '../logging/networkMonitor'
+import {
+  reportFailure,
+  reportSuccess,
+  reportAuthFailure,
+  reportAuthSuccess,
+} from '../logging/networkMonitor'
 import { reportStorageFailure } from '../logging/storageMonitor'
 
 type CacheEntry = {
@@ -118,9 +123,40 @@ export class Api {
     }
   }
 
+  private blobCacheKey(endpoint: string): string {
+    return `blobs/${endpoint.replace(/[^a-z0-9]/gi, '_')}`
+  }
+
+  // Persists a media file to disk without ever creating an object URL for
+  // it — a prefetch just needs the bytes to exist on disk for next time,
+  // and doesn't display anything. Skips entirely once something is already
+  // cached under this key, so a prefetch re-run only does work for media
+  // that's actually new.
+  async ensureCached(endpoint: string): Promise<void> {
+    if (!window.electronAPI) return
+    const { disableCache: noCache } = await loadConfig()
+    if (noCache) return
+
+    const cacheKey = this.blobCacheKey(endpoint)
+    const existing = await window.electronAPI.cacheRead(cacheKey).catch(() => null)
+    if (existing) return
+
+    const res = await this.rawFetch(endpoint)
+    if (!res.ok) return
+    const blob = await res.blob()
+
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(blob)
+    })
+    await window.electronAPI.cacheWrite(cacheKey, dataUrl).catch(() => {})
+  }
+
   async getBlob(endpoint: string): Promise<string | null> {
     const { disableCache: noCache } = await loadConfig()
-    const cacheKey = `blobs/${endpoint.replace(/[^a-z0-9]/gi, '_')}`
+    const cacheKey = this.blobCacheKey(endpoint)
 
     if (!noCache && window.electronAPI) {
       try {

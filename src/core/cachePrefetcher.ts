@@ -55,8 +55,9 @@ async function prefetchModule(moduleId: string): Promise<void> {
     ),
   )
 
-  // Blob URLs are discarded — disk cache is the goal
-  await Promise.allSettled([...mediaIds].map((id) => getApi().getBlob(`/media/${id}`)))
+  // ensureCached skips anything already on disk on its own — so a re-run
+  // only does actual work for media that's newly appeared since last time.
+  await Promise.allSettled([...mediaIds].map((id) => getApi().ensureCached(`/media/${id}`)))
 }
 
 async function prefetchAppSettings(deviceId: string): Promise<void> {
